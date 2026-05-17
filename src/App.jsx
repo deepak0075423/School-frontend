@@ -36,7 +36,8 @@ const ADocuments    = lazy(() => import('./pages/admin/Documents'));
 const AHolidays     = lazy(() => import('./pages/admin/Holidays'));
 const AAttendance   = lazy(() => import('./pages/admin/Attendance'));
 const AAdmins       = lazy(() => import('./pages/admin/Admins'));
-const AReports      = lazy(() => import('./pages/admin/Reports'));
+const AReports         = lazy(() => import('./pages/admin/Reports'));
+const ASchoolSettings  = lazy(() => import('./pages/admin/SchoolSettings'));
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const SharedNotifications = lazy(() => import('./pages/shared/Notifications'));
@@ -103,6 +104,9 @@ const LibCirculation= lazy(() => import('./pages/library/librarian/Circulation')
 const LibReservations=lazy(() => import('./pages/library/librarian/Reservations'));
 const LibFines      = lazy(() => import('./pages/library/librarian/Fines'));
 const LibPolicy     = lazy(() => import('./pages/library/librarian/Policy'));
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+const Chat = lazy(() => import('./pages/Chat'));
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 const Profile = lazy(() => import('./pages/Profile'));
@@ -195,7 +199,8 @@ export default function App() {
             <Route path="documents"       element={<ADocuments />} />
             <Route path="holidays"        element={<AHolidays />} />
             <Route path="attendance"      element={<AAttendance />} />
-            <Route path="reports"         element={<AReports />} />
+            <Route path="reports"          element={<AReports />} />
+            <Route path="school-settings" element={<ASchoolSettings />} />
             {/* Fees */}
             <Route path="fees/dashboard"      element={<FAdminDash />} />
             <Route path="fees/categories"     element={<FCategories />} />
@@ -275,6 +280,13 @@ export default function App() {
             <Route path="holidays"         element={<PHolidays />} />
             <Route path="child-fees"       element={<PFees />} />
             <Route path="notifications"    element={<SharedNotifications />} />
+          </Route>
+
+          {/* Chat (all authenticated roles) */}
+          <Route path="/chat" element={
+            <Protected><AppLayout /></Protected>
+          }>
+            <Route index element={<Chat />} />
           </Route>
 
           {/* Profile (all roles) */}
