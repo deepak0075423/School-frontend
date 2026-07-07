@@ -29,13 +29,6 @@ export const removeMember        = (chatId, memberId) => api.delete(`/chat/group
 export const toggleMute        = (chatId)          => api.post(`/chat/${chatId}/mute`);
 export const toggleArchive     = (chatId)          => api.post(`/chat/${chatId}/archive`);
 
-// ── File upload ───────────────────────────────────────────────────────────────
-export const uploadChatFile = (file) => {
-  const fd = new FormData();
-  fd.append('file', file);
-  return api.post('/chat/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-};
-
 // ── Admin oversight ───────────────────────────────────────────────────────────
 export const getSchoolUsers    = (params)          => api.get('/chat/admin/school-users', { params });
 export const getAdminUserChats = (userId)          => api.get('/chat/admin/user-chats', { params: { userId } });

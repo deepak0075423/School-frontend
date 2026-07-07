@@ -4,12 +4,48 @@ import * as chatApi from '../api/chat.api';
 import { useAuth } from '../contexts/AuthContext';
 import { Spinner, Modal, Button, Confirm, Badge } from '../components/ui/index';
 import { connectSocket, getSocket } from '../socket';
+import '../styles/chat.css';
+
+// Stable avatar hue from a name
+function avatarHue(name = '') {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+}
+
+// "Today" / "Yesterday" / weekday / full date for day separators
+function dayLabel(d) {
+  const dt = new Date(d);
+  const today = new Date();
+  const y = new Date(); y.setDate(today.getDate() - 1);
+  if (dt.toDateString() === today.toDateString()) return 'Today';
+  if (dt.toDateString() === y.toDateString())     return 'Yesterday';
+  const days = (today - dt) / 86400000;
+  if (days < 7) return dt.toLocaleDateString('en-IN', { weekday: 'long' });
+  return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 const FALLBACK_POLL = 15000;   // slow poll — safety net when socket is down
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+// Broader set for the composer picker
+const PICKER_EMOJIS = [
+  '😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😍','🥰','😘',
+  '😋','😜','🤪','😎','🤩','🥳','😏','😒','😔','😞','😢','😭','😤','😠','😡','🤯',
+  '😳','🥺','😱','😨','😰','😥','🤔','🤗','🤭','🙄','😴','🤤','😷','🤒','🤕','🤢',
+  '👍','👎','👌','✌️','🤞','🤝','👏','🙌','🙏','💪','🫶','👋','🖐️','✋','👀','🧠',
+  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💖','💯','🔥','✨','🎉',
+  '🎊','🥳','🎁','🏆','⭐','🌟','💡','✅','❌','⚠️','❓','❗','📚','📝','🕐','☕',
+];
 
 const API_ROOT = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
 const fileHref = (u) => (!u ? '#' : u.startsWith('http') ? u : `${API_ROOT}${u.startsWith('/') ? '' : '/'}${u}`);
+
+// True when the text is just 1–3 emojis (renders large, like WhatsApp)
+const EMOJI_ONLY_RE = /^(?:\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*)*){1,3}$/u;
+const isEmojiOnly = (text) => {
+  const t = String(text || '').replace(/\s/g, '');
+  return t.length > 0 && t.length <= 24 && EMOJI_ONLY_RE.test(t);
+};
 
 function fmtTime(d) {
   if (!d) return '';
@@ -21,16 +57,21 @@ function fmtTime(d) {
   return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
-function ChatAvatar({ name, size = 36, type }) {
-  const initials = type === 'group' || type === 'broadcast'
+function ChatAvatar({ name, size = 44, type, image, online }) {
+  const isGroup = type === 'group' || type === 'broadcast';
+  const initials = isGroup
     ? (type === 'broadcast' ? '📢' : '👥')
     : (name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const bg = isGroup
+    ? 'var(--primary)'
+    : `hsl(${avatarHue(name || '')}, 55%, 50%)`;
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%', background: 'var(--primary)',
-      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.38, fontWeight: 700, flexShrink: 0,
-    }}>{initials}</div>
+    <div className="chat-av" style={{ width: size, height: size }}>
+      <div className="chat-av__img" style={{ width: size, height: size, background: bg, fontSize: size * 0.4 }}>
+        {image ? <img src={image} alt="" /> : initials}
+      </div>
+      {online && <span className="chat-av__dot" />}
+    </div>
   );
 }
 
@@ -71,6 +112,7 @@ export default function Chat() {
   const [text, setText]                 = useState('');
   const [sending, setSending]           = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showEmoji, setShowEmoji]       = useState(false);
 
   // message interaction state
   const [replyTo, setReplyTo]     = useState(null);
@@ -78,7 +120,9 @@ export default function Chat() {
   const [editText, setEditText]   = useState('');
   const [delMsg, setDelMsg]       = useState(null);
   const [emojiFor, setEmojiFor]   = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [hoverMsg, setHoverMsg]   = useState(null);   // message id under the cursor
+  const [forwardMsg, setForwardMsg] = useState(null); // message being forwarded
+  const [historyMsg, setHistoryMsg] = useState(null); // admin: view edit history
 
   // modals
   const [showNewChat, setShowNewChat]   = useState(false);
@@ -122,7 +166,7 @@ export default function Chat() {
 
   const bottomRef     = useRef(null);
   const listRef       = useRef(null);
-  const fileInputRef  = useRef(null);
+  const inputRef      = useRef(null);
   const activeChatRef = useRef(null);
   activeChatRef.current = activeChat;
 
@@ -161,7 +205,7 @@ export default function Chat() {
   // ── Open a chat ───────────────────────────────────────────────────────────
   const openChat = useCallback((chat) => {
     setActiveChat(chat);
-    setReplyTo(null); setEditing(null); setEmojiFor(null);
+    setReplyTo(null); setEditing(null); setEmojiFor(null); setShowEmoji(false);
     setChats(cs => cs.map(c => c._id === chat._id ? { ...c, unreadCount: 0 } : c));
     const sock = getSocket();
     if (sock?.connected) sock.emit('chat:read', { chatId: chat._id });
@@ -206,9 +250,15 @@ export default function Chat() {
       loadChats();
     };
 
-    const onEdited = ({ messageId, content, editedAt }) => {
-      setMessages(m => m.map(x => String(x._id) === String(messageId)
-        ? { ...x, content, isEdited: true, editedAt } : x));
+    const onEdited = ({ messageId, content, editedAt, previousContent }) => {
+      setMessages(m => m.map(x => {
+        if (String(x._id) !== String(messageId)) return x;
+        // Admins keep the audit trail: append the version being replaced
+        const editHistory = isSchoolAdmin
+          ? [...(x.editHistory || []), { content: previousContent ?? x.content, editedAt }]
+          : x.editHistory;
+        return { ...x, content, isEdited: true, editedAt, editHistory };
+      }));
     };
     const onDeleted = ({ messageId }) => {
       setMessages(m => m.map(x => String(x._id) === String(messageId)
@@ -292,6 +342,22 @@ export default function Chat() {
     }
   };
 
+  // Insert an emoji at the caret (or append) and keep focus in the input
+  const insertEmoji = (emoji) => {
+    const el = inputRef.current;
+    if (el && typeof el.selectionStart === 'number') {
+      const start = el.selectionStart, end = el.selectionEnd;
+      setText(t => t.slice(0, start) + emoji + t.slice(end));
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + emoji.length;
+        el.setSelectionRange(pos, pos);
+      });
+    } else {
+      setText(t => t + emoji);
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!text.trim() || !activeChat || sending) return;
@@ -300,20 +366,6 @@ export default function Chat() {
     setText('');
     await doSend({ content });
     setSending(false);
-  };
-
-  const handleFilePick = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || !activeChat) return;
-    setUploading(true);
-    try {
-      const res = await chatApi.uploadChatFile(file);
-      const { attachment, type } = res.data || {};
-      await doSend({ content: '', type, attachments: [attachment] });
-    } catch (err) {
-      toast.error(err?.message || 'Upload failed');
-    } finally { setUploading(false); }
   };
 
   // ── Message actions ───────────────────────────────────────────────────────
@@ -343,6 +395,20 @@ export default function Chat() {
       const res = await chatApi.toggleReaction(msg._id, emoji);
       setMessages(m => m.map(x => x._id === msg._id ? { ...x, reactions: res.data } : x));
     } catch (err) { toast.error(err?.message || 'Failed'); }
+  };
+
+  // ── Forward a message to another chat ──────────────────────────────────────
+  const doForward = async (targetChat) => {
+    if (!forwardMsg || !targetChat) return;
+    try {
+      await chatApi.sendMessage(targetChat._id, {
+        content: forwardMsg.content, type: forwardMsg.type || 'text', isForwarded: true,
+      });
+      toast.success(`Forwarded to ${chatName(targetChat)}`);
+      setForwardMsg(null);
+      if (activeChat?._id === targetChat._id) loadMessages(targetChat._id, true);
+      loadChats();
+    } catch (err) { toast.error(err?.message || 'Failed to forward'); }
   };
 
   // ── Contacts / new chat / new group ───────────────────────────────────────
@@ -509,242 +575,289 @@ export default function Chat() {
     return map;
   }, [members]);
 
+  const isGroupChat = activeChat && (activeChat.type === 'group' || activeChat.type === 'broadcast');
+
+  // Group consecutive messages by sender + day into WhatsApp/Slack-style clusters,
+  // inserting a day separator when the date changes.
+  const renderItems = useMemo(() => {
+    const items = [];
+    let lastDay = null;
+    let group = null;
+    for (const msg of messages) {
+      const day = new Date(msg.createdAt).toDateString();
+      const senderId = String(msg.sender?._id || msg.sender);
+      const mine = senderId === myId;
+      if (day !== lastDay) {
+        items.push({ type: 'day', key: `day-${day}`, label: dayLabel(msg.createdAt) });
+        lastDay = day;
+        group = null;
+      }
+      const gap = group && (new Date(msg.createdAt) - new Date(group.lastAt)) > 5 * 60 * 1000;
+      if (!group || group.senderId !== senderId || gap) {
+        group = { type: 'group', key: `grp-${msg._id}`, senderId, mine, sender: msg.sender, msgs: [], lastAt: msg.createdAt };
+        items.push(group);
+      }
+      group.msgs.push(msg);
+      group.lastAt = msg.createdAt;
+    }
+    return items;
+  }, [messages, myId]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display:'flex', height:'calc(100vh - 64px)', overflow:'hidden' }}>
+    <div className={`chat-wrap${activeChat ? ' has-active' : ''}`}>
 
-      {/* Sidebar */}
-      <div style={{ width:320, borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', flexShrink:0 }}>
-        <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
-          <strong style={{ fontSize:'1rem' }}>Messages</strong>
-          <div style={{ display:'flex', gap:6 }}>
-            <button className="btn btn-secondary btn-sm" title="Search messages" onClick={() => { setShowSearch(s => !s); setSearchQ(''); }}>🔍</button>
+      {/* ───────── Sidebar ───────── */}
+      <div className="chat-side">
+        <div className="chat-side__head">
+          <span className="chat-side__title">Chats</span>
+          <div className="chat-side__actions">
+            <button className={`chat-iconbtn${showSearch ? ' active' : ''}`} title="Search messages"
+              onClick={() => { setShowSearch(s => !s); setSearchQ(''); }}>🔍</button>
             {isSchoolAdmin && (
-              <button className="btn btn-secondary btn-sm" title="Chat oversight" onClick={() => { setShowOversight(true); setOvUser(null); }}>👁</button>
+              <button className="chat-iconbtn" title="Chat oversight"
+                onClick={() => { setShowOversight(true); setOvUser(null); }}>👁️</button>
             )}
             {canCreateGroup && (
-              <button className="btn btn-secondary btn-sm" title="New group" onClick={() => setShowNewGroup(true)}>👥+</button>
+              <button className="chat-iconbtn" title="New group"
+                onClick={() => setShowNewGroup(true)}>👥</button>
             )}
-            <button className="btn btn-primary btn-sm" onClick={() => setShowNewChat(true)}>+ New</button>
+            <button className="chat-iconbtn chat-iconbtn--primary" title="New chat"
+              onClick={() => setShowNewChat(true)}>✏️</button>
           </div>
         </div>
 
         {showSearch && (
-          <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--border)' }}>
-            <input className="form-control" placeholder="Search messages…" autoFocus
+          <div className="chat-search">
+            <input placeholder="Search messages…" autoFocus
               value={searchQ} onChange={e => setSearchQ(e.target.value)} />
           </div>
         )}
 
-        <div ref={listRef} style={{ overflowY:'auto', flex:1 }}>
+        <div ref={listRef} className="chat-list">
           {showSearch && searchQ.trim().length >= 2 ? (
             searchLoading ? (
               <div style={{ padding:32, display:'flex', justifyContent:'center' }}><Spinner /></div>
             ) : searchResults.length === 0 ? (
-              <div style={{ padding:32, textAlign:'center', color:'var(--text-muted)', fontSize:'.9rem' }}>No messages found</div>
+              <div className="chat-list__empty">No messages found</div>
             ) : searchResults.map(msg => (
-              <div key={msg._id}
+              <div key={msg._id} className="chat-row"
                 onClick={() => {
                   const c = chats.find(x => String(x._id) === String(msg.chat?._id || msg.chat));
                   if (c) { setShowSearch(false); openChat(c); }
-                }}
-                style={{ padding:'10px 16px', cursor:'pointer', borderBottom:'1px solid var(--border)' }}>
-                <div style={{ display:'flex', justifyContent:'space-between' }}>
-                  <span style={{ fontWeight:600, fontSize:'.85rem' }}>{msg.sender?.name}</span>
-                  <span style={{ fontSize:'.72rem', color:'var(--text-muted)' }}>{fmtTime(msg.createdAt)}</span>
+                }}>
+                <ChatAvatar name={msg.sender?.name} size={44} />
+                <div className="chat-row__body">
+                  <div className="chat-row__top">
+                    <span className="chat-row__name">{msg.sender?.name}</span>
+                    <span className="chat-row__time">{fmtTime(msg.createdAt)}</span>
+                  </div>
+                  <div className="chat-row__preview">{msg.content}</div>
                 </div>
-                <div style={{ fontSize:'.82rem', color:'var(--text-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {msg.content}
-                </div>
-                {msg.chat?.name && <Badge variant="muted">{msg.chat.name}</Badge>}
               </div>
             ))
           ) : chatsLoading ? (
             <div style={{ padding:32, display:'flex', justifyContent:'center' }}><Spinner /></div>
           ) : visibleChats.length === 0 ? (
-            <div style={{ padding:32, textAlign:'center', color:'var(--text-muted)', fontSize:'.9rem' }}>
-              {showArchived ? 'No archived chats.' : <>No chats yet.<br />Start one with "+ New".</>}
+            <div className="chat-list__empty">
+              {showArchived ? 'No archived chats.' : <>No conversations yet.<br />Tap ✏️ to start one.</>}
             </div>
-          ) : visibleChats.map(chat => (
-            <div key={chat._id}
-              onClick={() => openChat(chat)}
-              style={{
-                padding:'10px 16px', cursor:'pointer', display:'flex', gap:10, alignItems:'center',
-                background: activeChat?._id === chat._id ? 'var(--bg-secondary)' : 'transparent',
-                borderBottom:'1px solid var(--border)',
-              }}>
-              <ChatAvatar name={chatName(chat)} type={chat.type} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontWeight:600, fontSize:'.9rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:150 }}>
-                    {chat.isMuted && '🔕 '}{chatName(chat)}
-                  </span>
-                  <span style={{ fontSize:'.72rem', color:'var(--text-muted)', flexShrink:0 }}>{fmtTime(chat.lastActivity)}</span>
-                </div>
-                <div style={{ fontSize:'.8rem', color:'var(--text-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {chat.lastMessage?.isDeleted ? 'Message deleted'
-                    : chat.lastMessage?.type === 'image' ? '📷 Photo'
-                    : chat.lastMessage?.type === 'file'  ? '📎 File'
-                    : chat.lastMessage?.content || 'No messages yet'}
+          ) : visibleChats.map(chat => {
+            const online = chat.type === 'direct' && chat.otherUser && onlineUsers.has(String(chat.otherUser._id));
+            return (
+              <div key={chat._id} className={`chat-row${activeChat?._id === chat._id ? ' active' : ''}${chat.unreadCount > 0 ? ' unread' : ''}`}
+                onClick={() => openChat(chat)}>
+                <ChatAvatar name={chatName(chat)} type={chat.type} image={chat.displayAvatar} online={online} size={46} />
+                <div className="chat-row__body">
+                  <div className="chat-row__top">
+                    <span className="chat-row__name">{chat.isMuted && '🔕 '}{chatName(chat)}</span>
+                    <span className="chat-row__time">{fmtTime(chat.lastActivity)}</span>
+                  </div>
+                  <div className="chat-row__top">
+                    <span className="chat-row__preview">
+                      {chat.lastMessage?.isDeleted ? 'Message deleted'
+                        : chat.lastMessage?.type === 'image' ? '📷 Photo'
+                        : chat.lastMessage?.type === 'file'  ? '📎 File'
+                        : chat.lastMessage?.content || 'No messages yet'}
+                    </span>
+                    {chat.unreadCount > 0 && <span className="chat-pill">{chat.unreadCount}</span>}
+                  </div>
                 </div>
               </div>
-              {chat.unreadCount > 0 && (
-                <div style={{ background:'var(--primary)', color:'#fff', borderRadius:'50%', minWidth:18, height:18, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'.7rem', fontWeight:700, flexShrink:0 }}>
-                  {chat.unreadCount}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div style={{ borderTop:'1px solid var(--border)', padding:'8px 16px' }}>
-          <button className="btn btn-secondary btn-sm" style={{ width:'100%' }}
-            onClick={() => setShowArchived(a => !a)}>
-            {showArchived ? '← Back to chats' : `🗄 Archived (${chats.filter(c => c.isArchived).length})`}
+        <div className="chat-side__foot">
+          <button onClick={() => setShowArchived(a => !a)}>
+            {showArchived ? '← Back to chats' : `🗄️ Archived (${chats.filter(c => c.isArchived).length})`}
           </button>
         </div>
       </div>
 
-      {/* Message Area */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      {/* ───────── Main pane ───────── */}
+      <div className="chat-main">
         {!activeChat ? (
-          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'var(--text-muted)' }}>
-            <div style={{ fontSize:'2.5rem', marginBottom:12 }}>💬</div>
-            <div>Select a conversation or start a new one</div>
+          <div className="chat-empty">
+            <div className="chat-empty__icon">💬</div>
+            <div style={{ fontWeight:600, fontSize:'1.05rem', color:'var(--text)' }}>Your messages</div>
+            <div>Select a conversation or start a new one.</div>
           </div>
         ) : (
           <>
             {/* Header */}
-            <div style={{ padding:'12px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-              <ChatAvatar name={chatName(activeChat)} type={activeChat.type} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700 }}>
+            <div className="chat-header">
+              <button className="chat-iconbtn chat-back" title="Back"
+                onClick={() => setActiveChat(null)}>‹</button>
+              <ChatAvatar name={chatName(activeChat)} type={activeChat.type} image={activeChat.displayAvatar} online={otherOnline} size={42} />
+              <div className="chat-header__meta">
+                <div className="chat-header__title">
                   {chatName(activeChat)}
                   {activeChat.observer && <Badge variant="warning">observer</Badge>}
-                  {activeChat.isReadOnly && <span style={{ marginLeft:8 }}><Badge variant="muted">read-only</Badge></span>}
+                  {activeChat.isReadOnly && <Badge variant="muted">read-only</Badge>}
                 </div>
-                <div style={{ fontSize:'.75rem', color:'var(--text-muted)', textTransform:'capitalize' }}>
-                  {activeTyping ? <span style={{ color:'var(--primary)' }}>typing…</span>
-                    : otherOnline ? <span style={{ color:'var(--success, #22c55e)' }}>● online</span>
-                    : `${activeChat.type} chat`}
+                <div className={`chat-header__sub${activeTyping ? ' typing' : otherOnline ? ' online' : ''}`}>
+                  {activeTyping ? 'typing…'
+                    : otherOnline ? 'online'
+                    : (activeChat.type === 'group' || activeChat.type === 'broadcast') ? `${activeChat.type} chat`
+                    : 'direct chat'}
                 </div>
               </div>
               {!activeChat.observer && (
-                <div style={{ display:'flex', gap:6 }}>
+                <div className="chat-header__actions">
                   {(activeChat.type === 'group' || activeChat.type === 'broadcast') && (
-                    <button className="btn btn-secondary btn-sm" onClick={openInfo} title="Group info">ℹ️</button>
+                    <button className="chat-iconbtn" onClick={openInfo} title="Group info">ℹ️</button>
                   )}
-                  <button className="btn btn-secondary btn-sm" onClick={handleMute} title={activeChat.isMuted ? 'Unmute' : 'Mute'}>
+                  <button className="chat-iconbtn" onClick={handleMute} title={activeChat.isMuted ? 'Unmute' : 'Mute'}>
                     {activeChat.isMuted ? '🔕' : '🔔'}
                   </button>
-                  <button className="btn btn-secondary btn-sm" onClick={handleArchive} title={activeChat.isArchived ? 'Unarchive' : 'Archive'}>🗄</button>
+                  <button className="chat-iconbtn" onClick={handleArchive} title={activeChat.isArchived ? 'Unarchive' : 'Archive'}>🗄️</button>
                 </div>
               )}
             </div>
 
-            {/* Messages */}
-            <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:8 }}>
+            {/* Messages canvas */}
+            <div className="chat-canvas">
               {msgsLoading ? (
                 <div style={{ display:'flex', justifyContent:'center', padding:32 }}><Spinner /></div>
               ) : (
                 <>
                   {hasMore && (
-                    <div style={{ textAlign:'center' }}>
-                      <button className="btn btn-secondary btn-sm" onClick={loadOlder}>Load older messages</button>
+                    <div className="chat-loadmore">
+                      <button onClick={loadOlder}>Load older messages</button>
                     </div>
                   )}
                   {messages.length === 0 ? (
-                    <div style={{ textAlign:'center', color:'var(--text-muted)', marginTop:32 }}>No messages yet. Say hello!</div>
-                  ) : messages.map((msg) => {
-                    const isMine = String(msg.sender?._id || msg.sender) === myId;
-                    const canEdit = isMine && !msg.isDeleted &&
-                      (Date.now() - new Date(msg.createdAt).getTime() < 86_400_000);
-                    const canDelete = !msg.isDeleted && (isMine || isSchoolAdmin);
-                    const isEditing = editingMsg?._id === msg._id;
+                    <div className="chat-list__empty">No messages yet. Say hello! 👋</div>
+                  ) : renderItems.map(item => {
+                    if (item.type === 'day') return <div key={item.key} className="chat-day"><span>{item.label}</span></div>;
+                    const g = item;
+                    const showAv = !g.mine && isGroupChat;
                     return (
-                      <div key={msg._id} style={{ display:'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}
-                        onMouseLeave={() => setEmojiFor(f => (f === msg._id ? null : f))}>
-                        <div style={{ maxWidth:'70%', position:'relative' }}>
-                          {!isMine && (
-                            <div style={{ fontSize:'.75rem', color:'var(--text-muted)', marginBottom:2, marginLeft:4 }}>
-                              {msg.sender?.name}
-                              {msg.senderRole && <span style={{ opacity:.7 }}> · {String(msg.senderRole).replace('_',' ')}</span>}
+                      <div key={g.key} className={`chat-grp${g.mine ? ' mine' : ''}`}>
+                        {showAv && <div className="chat-grp__av"><ChatAvatar name={g.sender?.name} size={34} /></div>}
+                        <div className="chat-grp__col">
+                          {showAv && (
+                            <div className="chat-grp__sender" style={{ color:`hsl(${avatarHue(g.sender?.name||'')},55%,45%)` }}>
+                              {g.sender?.name}
+                              {g.sender?.role && <span style={{ opacity:.65, fontWeight:500 }}> · {String(g.sender.role).replace('_',' ')}</span>}
                             </div>
                           )}
-                          {msg.replyTo && (
-                            <div style={{
-                              borderLeft:'3px solid var(--primary)', background:'var(--bg-secondary)',
-                              borderRadius:6, padding:'4px 10px', fontSize:'.78rem', marginBottom:2,
-                              color:'var(--text-muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                            }}>
-                              <strong>{msg.replyTo.sender?.name || '…'}</strong>{' '}
-                              {msg.replyTo.isDeleted ? 'Deleted message' : msg.replyTo.content}
-                            </div>
-                          )}
-                          <div style={{
-                            background: isMine ? 'var(--primary)' : 'var(--bg-secondary)',
-                            color: isMine ? '#fff' : 'inherit',
-                            borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                            padding:'8px 14px',
-                            fontSize:'.9rem',
-                            wordBreak:'break-word',
-                            opacity: msg.isDeleted ? 0.5 : msg.pending ? 0.7 : 1,
-                            fontStyle: msg.isDeleted ? 'italic' : 'normal',
-                          }}>
-                            {msg.isDeleted ? 'This message was deleted' : (
-                              <>
-                                {(msg.attachments || []).map((att, i) => <Attachment key={i} att={att} />)}
-                                {isEditing ? (
-                                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                                    <input className="form-control" value={editText} autoFocus
-                                      onChange={e => setEditText(e.target.value)}
-                                      onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null); }}
-                                      style={{ fontSize:'.85rem', color:'#111' }} />
-                                    <button className="btn btn-sm btn-secondary" onClick={saveEdit}>✓</button>
-                                    <button className="btn btn-sm btn-secondary" onClick={() => setEditing(null)}>✕</button>
+                          {g.msgs.map(msg => {
+                            const isMine = g.mine;
+                            const canEdit = isMine && !msg.isDeleted && (Date.now() - new Date(msg.createdAt).getTime() < 86_400_000);
+                            const canDelete = !msg.isDeleted && (isMine || isSchoolAdmin);
+                            const isEditing = editingMsg?._id === msg._id;
+                            const adminSeesDeleted = msg.isDeleted && isSchoolAdmin && msg.content;
+                            const showActions = hoverMsg === msg._id && !msg.isDeleted && !msg.pending && !isEditing && !activeChat.observer;
+                            const emojiBig = !msg.isDeleted && !isEditing && isEmojiOnly(msg.content) && !(msg.attachments || []).length;
+                            const bubbleClass = emojiBig
+                              ? 'chat-bubble chat-emoji-only'
+                              : `chat-bubble ${isMine ? 'out' : 'in'}${msg.isDeleted && !adminSeesDeleted ? ' deleted' : ''}${msg.pending ? ' pending' : ''}`;
+                            return (
+                              <div key={msg._id} className="chat-brow"
+                                onMouseEnter={() => setHoverMsg(msg._id)}
+                                onMouseLeave={() => { setHoverMsg(h => (h === msg._id ? null : h)); setEmojiFor(f => (f === msg._id ? null : f)); }}>
+                                {showActions && (
+                                  <div className="chat-toolbar">
+                                    <span title="React" onClick={() => setEmojiFor(f => f === msg._id ? null : msg._id)}>🙂</span>
+                                    <span title="Reply" onClick={() => { setReplyTo(msg); setEditing(null); }}>↩️</span>
+                                    <span title="Forward" onClick={() => setForwardMsg(msg)}>↪️</span>
+                                    {canEdit && <span title="Edit" onClick={() => startEdit(msg)}>✏️</span>}
+                                    {canDelete && <span title="Delete" onClick={() => setDelMsg(msg)}>🗑️</span>}
                                   </div>
-                                ) : msg.content}
-                              </>
-                            )}
-                          </div>
-                          {(msg.reactions || []).length > 0 && (
-                            <div style={{ display:'flex', gap:4, marginTop:2, flexWrap:'wrap', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
-                              {Object.entries((msg.reactions || []).reduce((acc, r) => {
-                                acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc;
-                              }, {})).map(([emoji, count]) => (
-                                <span key={emoji} onClick={() => !activeChat.observer && react(msg, emoji)}
-                                  style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:12, padding:'1px 7px', fontSize:'.75rem', cursor:'pointer' }}>
-                                  {emoji} {count > 1 ? count : ''}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <div style={{ fontSize:'.7rem', color:'var(--text-muted)', marginTop:2, textAlign: isMine ? 'right' : 'left', marginLeft:4, marginRight:4, display:'flex', gap:8, justifyContent: isMine ? 'flex-end' : 'flex-start', alignItems:'center' }}>
-                            <span>{fmtTime(msg.createdAt)}{msg.isEdited && ' · edited'}{msg.pending && ' · sending…'}</span>
-                            {!msg.isDeleted && !msg.pending && !activeChat.observer && !isEditing && (
-                              <span style={{ display:'flex', gap:6 }}>
-                                <span style={{ cursor:'pointer' }} title="React" onClick={() => setEmojiFor(f => f === msg._id ? null : msg._id)}>🙂</span>
-                                <span style={{ cursor:'pointer' }} title="Reply" onClick={() => { setReplyTo(msg); setEditing(null); }}>↩</span>
-                                {canEdit && <span style={{ cursor:'pointer' }} title="Edit" onClick={() => startEdit(msg)}>✏️</span>}
-                                {canDelete && <span style={{ cursor:'pointer' }} title="Delete" onClick={() => setDelMsg(msg)}>🗑</span>}
-                              </span>
-                            )}
-                          </div>
-                          {emojiFor === msg._id && (
-                            <div style={{
-                              position:'absolute', bottom:'100%', [isMine ? 'right' : 'left']: 0, zIndex: 5,
-                              background:'var(--bg-primary)', border:'1px solid var(--border)', borderRadius:20,
-                              padding:'4px 8px', display:'flex', gap:4, boxShadow:'0 4px 12px rgba(0,0,0,.15)',
-                            }}>
-                              {EMOJIS.map(e => (
-                                <span key={e} style={{ cursor:'pointer', fontSize:'1.1rem' }} onClick={() => react(msg, e)}>{e}</span>
-                              ))}
-                            </div>
-                          )}
+                                )}
+                                {emojiFor === msg._id && (
+                                  <div className="chat-emojibar">
+                                    {EMOJIS.map(e => <span key={e} onClick={() => react(msg, e)}>{e}</span>)}
+                                  </div>
+                                )}
+                                <div className={bubbleClass}>
+                                  {msg.isForwarded && !msg.isDeleted && !isEditing && (
+                                    <div className="chat-fwd">↪️ Forwarded</div>
+                                  )}
+                                  {msg.replyTo && !msg.isDeleted && (
+                                    <div className="chat-reply-quote">
+                                      <b>{msg.replyTo.sender?.name || '…'}</b>
+                                      <span>{msg.replyTo.isDeleted ? 'Deleted message' : msg.replyTo.content}</span>
+                                    </div>
+                                  )}
+                                  {msg.isDeleted && !adminSeesDeleted ? (
+                                    <span style={{ fontStyle:'italic' }}>🚫 This message was deleted</span>
+                                  ) : msg.isDeleted && adminSeesDeleted ? (
+                                    <div>
+                                      <div style={{ fontSize:'.7rem', color:'var(--danger, #ef4444)', fontWeight:700, marginBottom:3 }}>🗑️ Deleted (admin view)</div>
+                                      <div style={{ opacity:.75, textDecoration:'line-through' }}>{msg.content}</div>
+                                    </div>
+                                  ) : isEditing ? (
+                                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                                      <input className="form-control" value={editText} autoFocus
+                                        onChange={e => setEditText(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditing(null); }}
+                                        style={{ fontSize:'.85rem', color:'#111', minWidth:160 }} />
+                                      <button className="btn btn-sm btn-secondary" onClick={saveEdit}>✓</button>
+                                      <button className="btn btn-sm btn-secondary" onClick={() => setEditing(null)}>✕</button>
+                                    </div>
+                                  ) : emojiBig ? (
+                                    <span className="emoji-pop">{msg.content}</span>
+                                  ) : (
+                                    <>
+                                      {(msg.attachments || []).map((att, i) => <Attachment key={i} att={att} />)}
+                                      <span className="chat-bubble__text">{msg.content}</span>
+                                      <span className="chat-bubble__meta">
+                                        {fmtTime(msg.createdAt)}
+                                        {msg.isEdited && (
+                                          isSchoolAdmin && (msg.editHistory || []).length
+                                            ? <span style={{ cursor:'pointer', textDecoration:'underline' }} title="Edit history" onClick={() => setHistoryMsg(msg)}>edited</span>
+                                            : <span>edited</span>
+                                        )}
+                                        {isMine && (msg.pending ? '🕐' : <span className="chat-tick">✓✓</span>)}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {(msg.reactions || []).length > 0 && (
+                                  <div className="chat-reacts">
+                                    {Object.entries((msg.reactions || []).reduce((acc, r) => { acc[r.emoji] = (acc[r.emoji] || 0) + 1; return acc; }, {})).map(([emoji, count]) => (
+                                      <span key={emoji} className="chat-react" onClick={() => !activeChat.observer && react(msg, emoji)}>
+                                        {emoji} {count > 1 ? count : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
                   })}
+                  {activeTyping && (
+                    <div className="chat-typing">
+                      {isGroupChat && <div className="chat-grp__av" />}
+                      <div className="chat-typing__bubble"><i /><i /><i /></div>
+                    </div>
+                  )}
                 </>
               )}
               <div ref={bottomRef} />
@@ -752,47 +865,58 @@ export default function Chat() {
 
             {/* Reply banner */}
             {replyTo && (
-              <div style={{ padding:'6px 20px', borderTop:'1px solid var(--border)', background:'var(--bg-secondary)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ fontSize:'.8rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  ↩ Replying to <strong>{replyTo.sender?.name}</strong>: {replyTo.content?.slice(0, 80)}
+              <div className="chat-replybar">
+                <div className="chat-replybar__body">
+                  <b>Replying to {replyTo.sender?.name}</b>
+                  <div>{replyTo.content?.slice(0, 120) || '(attachment)'}</div>
                 </div>
-                <button className="btn btn-secondary btn-sm" onClick={() => setReplyTo(null)}>✕</button>
+                <button className="chat-replybar__close" onClick={() => setReplyTo(null)}>✕</button>
               </div>
             )}
 
-            {/* Input */}
+            {/* Composer */}
             {activeChat.observer ? (
-              <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', textAlign:'center', color:'var(--text-muted)', fontSize:'.85rem' }}>
-                Observer mode — you are viewing this conversation as an administrator.
-              </div>
+              <div className="chat-composer__notice">👁️ Observer mode — viewing as administrator.</div>
             ) : (activeChat.isReadOnly && !['school_admin', 'teacher'].includes(user?.role)) ? (
-              <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', textAlign:'center', color:'var(--text-muted)', fontSize:'.85rem' }}>
-                🔒 Only teachers and admins can send messages in this channel.
-              </div>
+              <div className="chat-composer__notice">🔒 Only teachers and admins can send messages in this channel.</div>
             ) : (
-              <form onSubmit={handleSend} style={{ padding:'12px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:8, flexShrink:0 }}>
-                <input ref={fileInputRef} type="file" hidden onChange={handleFilePick} />
-                <button type="button" className="btn btn-secondary" title="Attach file"
-                  onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                  style={{ borderRadius:24 }}>
-                  {uploading ? '…' : '📎'}
-                </button>
-                <input
-                  className="form-control"
-                  placeholder="Type a message…"
-                  value={text}
-                  onChange={e => { setText(e.target.value); emitTyping(); }}
-                  style={{ borderRadius:24 }}
-                  disabled={sending}
-                />
-                <button type="submit" className="btn btn-primary" disabled={!text.trim() || sending} style={{ borderRadius:24, minWidth:72 }}>
-                  {sending ? '…' : 'Send'}
+              <form onSubmit={handleSend} className="chat-composer">
+                {showEmoji && (
+                  <>
+                    <div onClick={() => setShowEmoji(false)} style={{ position:'fixed', inset:0, zIndex:19 }} />
+                    <div className="chat-emojipick">
+                      {PICKER_EMOJIS.map((em, i) => (
+                        <button key={i} type="button" onClick={() => insertEmoji(em)}>{em}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <div className="chat-inputbox">
+                  <button type="button" className="chat-inputbox__emoji" title="Emoji"
+                    onClick={() => setShowEmoji(s => !s)}>😊</button>
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    placeholder="Type a message…"
+                    value={text}
+                    onChange={e => {
+                      setText(e.target.value); emitTyping();
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
+                    disabled={sending}
+                  />
+                </div>
+                <button type="submit" className="chat-sendbtn" disabled={!text.trim() || sending} title="Send">
+                  {sending ? '…' : '➤'}
                 </button>
               </form>
             )}
           </>
         )}
       </div>
+
 
       {/* New Direct Chat modal */}
       <Modal open={showNewChat} onClose={() => setShowNewChat(false)} title="New Direct Chat">
@@ -1024,6 +1148,52 @@ export default function Chat() {
 
       <Confirm open={!!delMsg} onClose={() => setDelMsg(null)} onConfirm={confirmDelete}
         title="Delete Message" message="Delete this message for everyone?" />
+
+      {/* Forward modal — pick a chat to forward to */}
+      <Modal open={!!forwardMsg} onClose={() => setForwardMsg(null)} title="Forward message">
+        {forwardMsg && (
+          <div style={{ background:'var(--bg-secondary)', border:'1px solid var(--border)', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:'.85rem', maxHeight:80, overflow:'hidden' }}>
+            <div style={{ fontSize:'.72rem', color:'var(--text-muted)', marginBottom:2 }}>{forwardMsg.sender?.name}</div>
+            {forwardMsg.content || '(attachment)'}
+          </div>
+        )}
+        <div style={{ maxHeight: 360, overflowY:'auto' }}>
+          {chats.filter(c => !c.observer).map(c => (
+            <div key={c._id} onClick={() => doForward(c)}
+              style={{ padding:'10px 12px', cursor:'pointer', display:'flex', gap:10, alignItems:'center', borderBottom:'1px solid var(--border)', borderRadius:6 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <ChatAvatar name={chatName(c)} size={32} type={c.type} />
+              <div style={{ fontWeight:600, fontSize:'.9rem' }}>{chatName(c)}</div>
+            </div>
+          ))}
+        </div>
+      </Modal>
+
+      {/* Edit history modal (school admin) */}
+      <Modal open={!!historyMsg} onClose={() => setHistoryMsg(null)} title="Edit history">
+        {historyMsg && (
+          <div>
+            <div style={{ fontSize:'.8rem', color:'var(--text-muted)', marginBottom:12 }}>
+              Sent by <strong>{historyMsg.sender?.name}</strong> · {new Date(historyMsg.createdAt).toLocaleString('en-IN')}
+            </div>
+            {[...(historyMsg.editHistory || [])].map((h, i) => (
+              <div key={i} style={{ borderLeft:'3px solid var(--border)', paddingLeft:12, marginBottom:12 }}>
+                <div style={{ fontSize:'.72rem', color:'var(--text-muted)', marginBottom:2 }}>
+                  Version {i + 1}{h.editedAt ? ` · replaced ${new Date(h.editedAt).toLocaleString('en-IN')}` : ''}
+                </div>
+                <div style={{ fontSize:'.9rem', textDecoration:'line-through', opacity:.75 }}>{h.content || '(empty)'}</div>
+              </div>
+            ))}
+            <div style={{ borderLeft:'3px solid var(--success, #22c55e)', paddingLeft:12 }}>
+              <div style={{ fontSize:'.72rem', color:'var(--success, #22c55e)', fontWeight:600, marginBottom:2 }}>
+                Current{historyMsg.editedAt ? ` · edited ${new Date(historyMsg.editedAt).toLocaleString('en-IN')}` : ''}
+              </div>
+              <div style={{ fontSize:'.9rem' }}>{historyMsg.content}</div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

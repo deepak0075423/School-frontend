@@ -20,6 +20,8 @@ export const approvePayment      = (id) => api.post(`/fees/admin/payments/${id}/
 export const rejectPayment       = (id) => api.post(`/fees/admin/payments/${id}/reject`);
 export const downloadAdminReceipt = (id) => api.get(`/fees/admin/payments/${id}/download`, { responseType: 'blob' });
 export const getSchoolLedger     = () => api.get('/fees/admin/ledger');
+export const getFeeSettings      = () => api.get('/fees/admin/settings');
+export const updateFeeSettings   = (data) => api.put('/fees/admin/settings', data);
 export const getCollectionReport = (params) => api.get('/fees/admin/reports/collection', { params });
 export const getDuesReport       = (params) => api.get('/fees/admin/reports/dues', { params });
 

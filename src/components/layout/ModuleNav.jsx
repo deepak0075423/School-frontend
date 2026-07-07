@@ -37,6 +37,7 @@ export const FEES_ADMIN_TABS = [
   { to: '/admin/fees/concessions',  label: '🎁 Concessions' },
   { to: '/admin/fees/fine-rules',   label: '⚠️ Fine Rules' },
   { to: '/admin/fees/reports',      label: '📈 Reports' },
+  { to: '/admin/fees/settings',     label: '⚙️ Settings' },
 ];
 
 export const PAYROLL_ADMIN_TABS = [

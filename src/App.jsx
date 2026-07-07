@@ -93,6 +93,7 @@ const FConcessions  = lazy(() => import('./pages/fees/admin/Concessions'));
 const FStudentFees  = lazy(() => import('./pages/fees/admin/StudentFees'));
 const FPayments     = lazy(() => import('./pages/fees/admin/Payments'));
 const FReports      = lazy(() => import('./pages/fees/admin/Reports'));
+const FSettings     = lazy(() => import('./pages/fees/admin/Settings'));
 
 // ── Payroll ───────────────────────────────────────────────────────────────────
 const PayDashboard  = lazy(() => import('./pages/payroll/admin/Dashboard'));
@@ -219,6 +220,7 @@ export default function App() {
               <Route path="student-fees"   element={<FStudentFees />} />
               <Route path="payments"       element={<FPayments />} />
               <Route path="reports"        element={<FReports />} />
+              <Route path="settings"       element={<FSettings />} />
             </Route>
             {/* Payroll */}
             <Route path="payroll" element={<ModuleNav tabs={PAYROLL_ADMIN_TABS} />}>
