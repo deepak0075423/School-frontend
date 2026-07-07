@@ -32,6 +32,7 @@ const ADMIN_NAV = [
   { to: '/admin/classes',           icon: '🏛️', label: 'Classes' },
   { to: '/admin/subjects',          icon: '📚', label: 'Subjects' },
   { to: '/admin/timetable',         icon: '🕐', label: 'Timetable',     module: 'timetable' },
+  { to: '/admin/exams',             icon: '📝', label: 'Aptitude Exams', module: 'aptitudeExam' },
   { to: '/admin/results',           icon: '📊', label: 'Results',       module: 'result' },
   { to: '/admin/attendance',        icon: '✅', label: 'Attendance',    module: 'attendance' },
   { section: 'Modules' },
@@ -42,6 +43,7 @@ const ADMIN_NAV = [
   { to: '/admin/documents',         icon: '📁', label: 'Documents',     module: 'document' },
   { to: '/admin/holidays',          icon: '🎉', label: 'Holidays',      module: 'holiday' },
   { to: '/admin/notifications',     icon: '🔔', label: 'Notifications', module: 'notification' },
+  { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
   { to: '/admin/reports',           icon: '📈', label: 'Reports' },
   { section: 'Settings' },
   { to: '/admin/school-settings',   icon: '⚙️', label: 'School Settings' },
@@ -64,8 +66,10 @@ const TEACHER_NAV = [
   { to: '/teacher/documents',       icon: '📁', label: 'Documents',     module: 'document' },
   { to: '/teacher/payroll/ctc',     icon: '💵', label: 'Payroll',       module: 'payroll' },
   { to: '/teacher/library',         icon: '📖', label: 'Library',       module: 'library' },
+  { to: '/teacher/manage-library/dashboard', icon: '📚', label: 'Manage Library', module: 'library', requires: 'isLibrarian' },
   { to: '/teacher/holidays',        icon: '🎉', label: 'Holidays',      module: 'holiday' },
   { to: '/teacher/notifications',   icon: '🔔', label: 'Notifications', module: 'notification' },
+  { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
   { section: 'Account' },
   { to: '/profile',                 icon: '👤', label: 'Profile' },
 ];
@@ -85,6 +89,7 @@ const STUDENT_NAV = [
   { to: '/student/fees',            icon: '💰', label: 'Fees',          module: 'fees' },
   { to: '/student/library',         icon: '📖', label: 'Library',       module: 'library' },
   { to: '/student/notifications',   icon: '🔔', label: 'Notifications', module: 'notification' },
+  { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
   { section: 'Account' },
   { to: '/profile',                 icon: '👤', label: 'Profile' },
 ];
@@ -102,6 +107,7 @@ const PARENT_NAV = [
   { to: '/parent/holidays',         icon: '🎉', label: 'Holidays',      module: 'holiday' },
   { to: '/parent/child-fees',       icon: '💰', label: 'Fees',          module: 'fees' },
   { to: '/parent/notifications',    icon: '🔔', label: 'Notifications', module: 'notification' },
+  { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
   { section: 'Account' },
   { to: '/profile',                 icon: '👤', label: 'Profile' },
 ];
@@ -138,8 +144,10 @@ export default function Sidebar({ onLinkClick, collapsed }) {
   const rawNav = NAV_MAP[user?.role] || [];
   // While loading show everything; once ready filter by enabled flags
   const nav = (modulesReady && modules)
-    ? rawNav.filter(item => !item.module || modules[item.module])
-    : rawNav;
+    ? rawNav.filter(item =>
+        (!item.module   || modules[item.module]) &&
+        (!item.requires || modules[item.requires]))
+    : rawNav.filter(item => !item.requires);
 
   return (
     <nav className="sidebar">
