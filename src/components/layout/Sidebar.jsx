@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useChatNotify } from '../../contexts/ChatNotifyContext';
 import { getModules as getAdminModules }   from '../../api/admin.api';
 import { getModules as getTeacherModules } from '../../api/teacher.api';
 import { getModules as getStudentModules } from '../../api/student.api';
@@ -129,6 +130,7 @@ const MODULE_FETCHER = {
 
 export default function Sidebar({ onLinkClick, collapsed }) {
   const { user } = useAuth();
+  const { unreadTotal } = useChatNotify();
   const [modules, setModules]       = useState(null);
   const [modulesReady, setModulesReady] = useState(false);
 
@@ -173,6 +175,9 @@ export default function Sidebar({ onLinkClick, collapsed }) {
             >
               <Icon name={item.icon} />
               {!collapsed && <span className="sidebar__link-text">{item.label}</span>}
+              {item.to === '/chat' && unreadTotal > 0 && (
+                <span className="sidebar__badge">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
+              )}
               {!collapsed && item.badge && (
                 <span className="sidebar__badge">{item.badge}</span>
               )}

@@ -10,6 +10,7 @@ export const getChatMembers    = (chatId)          => api.get(`/chat/chats/${cha
 export const getContacts       = (params)          => api.get('/chat/contacts', { params });
 export const searchMessages    = (params)          => api.get('/chat/search', { params });
 export const getUnreadCount    = ()                => api.get('/chat/unread-count');
+export const heartbeat         = ()                => api.post('/chat/heartbeat');
 
 // ── Create chats ──────────────────────────────────────────────────────────────
 export const startDirectChat   = (targetUserId)    => api.post('/chat/direct', { targetUserId });
