@@ -4,10 +4,26 @@ import useFetch from '../../hooks/useFetch';
 import {
   getAttendance, markAttendance,
   getMyAttendance, clockIn, clockOut, submitRegularization, getMyRegularizations,
-  getCorrectionRequests, reviewCorrection,
+  getCorrectionRequests, reviewCorrection, getClassRanking,
 } from '../../api/teacher.api';
 import { PageHeader, Table, Badge, Button, Spinner } from '../../components/ui/index';
 import SelfAttendance from '../../components/attendance/SelfAttendance';
+import ClassRanking from '../../components/attendance/ClassRanking';
+
+// ── Class attendance ranking ──────────────────────────────────────────────────
+function SectionRanking() {
+  const { data, loading } = useFetch(getClassRanking);
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner /></div>;
+  const ranking = data?.ranking || [];
+  return (
+    <>
+      <p style={{ fontSize: '.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+        Students in {data?.section?.sectionName ? <strong>{data.section.sectionName}</strong> : 'your section'} ranked by attendance percentage this academic year.
+      </p>
+      <ClassRanking ranking={ranking} />
+    </>
+  );
+}
 
 const STATUS_COLORS = { present: '#10b981', absent: '#ef4444' };
 const STATUS_OPTS   = ['present', 'absent'];
@@ -168,10 +184,12 @@ export default function TeacherAttendance() {
       <PageHeader title="Attendance" subtitle="Mark your section and clock your own day" />
       <div className="tabs">
         <button className={`tab${tab === 'mark' ? ' active' : ''}`}    onClick={() => setTab('mark')}>Mark Students</button>
+        <button className={`tab${tab === 'ranking' ? ' active' : ''}`} onClick={() => setTab('ranking')}>🏆 Class Ranking</button>
         <button className={`tab${tab === 'mine' ? ' active' : ''}`}    onClick={() => setTab('mine')}>My Attendance</button>
         <button className={`tab${tab === 'correct' ? ' active' : ''}`} onClick={() => setTab('correct')}>Student Corrections</button>
       </div>
       {tab === 'mark'    && <MarkAttendance />}
+      {tab === 'ranking' && <SectionRanking />}
       {tab === 'mine'    && (
         <SelfAttendance
           api={{ getMyAttendance, clockIn, clockOut }}

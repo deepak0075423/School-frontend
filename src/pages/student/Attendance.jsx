@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import useFetch from '../../hooks/useFetch';
-import { getMyAttendance, submitCorrection } from '../../api/student.api';
+import { getMyAttendance, submitCorrection, getClassRanking } from '../../api/student.api';
 import { PageHeader, Spinner } from '../../components/ui/index';
+import ClassRanking from '../../components/attendance/ClassRanking';
+import { useAuth } from '../../contexts/AuthContext';
 
 const STATUS_COLOR = { present: '#10b981', absent: '#ef4444', late: '#f59e0b', 'half-day': '#6366f1' };
 
 export default function StudentAttendance() {
+  const { user } = useAuth();
   const today = new Date();
+  const [tab, setTab] = useState('calendar');
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year,  setYear]  = useState(today.getFullYear());
   const [showForm, setShowForm] = useState(false);
@@ -18,6 +22,7 @@ export default function StudentAttendance() {
     () => getMyAttendance({ month, year }),
     [month, year],
   );
+  const { data: rankData } = useFetch(getClassRanking);
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDay    = new Date(year, month - 1, 1).getDay();
@@ -49,9 +54,36 @@ export default function StudentAttendance() {
 
   return (
     <div className="page">
-      <PageHeader title="My Attendance" subtitle="Monthly attendance calendar"
-        action={<button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>Request Correction</button>}
+      <PageHeader title="My Attendance" subtitle="Monthly calendar and class ranking"
+        action={tab === 'calendar' ? <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>Request Correction</button> : null}
       />
+
+      <div className="tabs">
+        {[['calendar', 'My Calendar'], ['ranking', '🏆 Class Ranking']].map(([k, l]) => (
+          <button key={k} className={`tab${tab === k ? ' active' : ''}`} onClick={() => setTab(k)}>{l}</button>
+        ))}
+      </div>
+
+      {tab === 'ranking' && (
+        <>
+          {rankData?.myRank && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="card-body" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '2.2rem' }}>{rankData.myRank === 1 ? '🥇' : rankData.myRank === 2 ? '🥈' : rankData.myRank === 3 ? '🥉' : '🏅'}</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>You're ranked #{rankData.myRank} of {rankData.total}</div>
+                  <div style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>
+                    {rankData.myPercentage != null ? `${rankData.myPercentage}% attendance this year` : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <ClassRanking ranking={rankData?.ranking || []} highlightId={user?._id} />
+        </>
+      )}
+
+      {tab === 'calendar' && <>
 
       {showForm && (
         <div className="card" style={{ marginBottom: 20 }}>
@@ -132,6 +164,7 @@ export default function StudentAttendance() {
           </div>
         </div></div>
       )}
+      </>}
     </div>
   );
 }

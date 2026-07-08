@@ -7,6 +7,7 @@ export const getTimetable        = () => api.get('/student/timetable');
 export const downloadTimetable   = () => api.get('/student/timetable/download', { responseType: 'blob' });
 export const getMyAttendance   = (params) => api.get('/student/my-attendance', { params });
 export const submitCorrection  = (data)   => api.post('/student/correction/submit', data);
+export const getClassRanking   = ()       => api.get('/student/attendance-ranking');
 export const getExams       = () => api.get('/student/exams');
 export const getAttempt     = (id) => api.get(`/student/exams/${id}/attempt`);
 export const saveAnswer     = (id, data) => api.post(`/student/exams/${id}/save-answer`, data);

@@ -13,6 +13,7 @@ export const clockOut              = ()       => api.post('/teacher/my-attendanc
 export const submitRegularization  = (data)   => api.post('/teacher/regularization', data);
 export const getMyRegularizations  = ()       => api.get('/teacher/regularization');
 export const getCorrectionRequests = ()       => api.get('/teacher/correction-requests');
+export const getClassRanking       = ()       => api.get('/teacher/attendance-ranking');
 export const reviewCorrection      = (data)   => api.post('/teacher/correction-requests/review', data);
 export const getTimetable          = (params) => api.get('/teacher/timetable', { params });
 export const downloadTimetable     = ()       => api.get('/teacher/timetable/download', { responseType: 'blob' });
