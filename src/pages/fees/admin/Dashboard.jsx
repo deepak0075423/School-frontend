@@ -27,7 +27,7 @@ export default function FeesAdminDashboard() {
           </div>
         } />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard label="Total Collected"    value={fmt(d.totalCollected)}  icon="💰" color="green" />
         <StatCard label="Pending Dues"       value={fmt(d.pendingDues)}     icon="⚠️" color="red" />
         <StatCard label="Total Students"     value={d.totalStudents || 0}   icon="👥" color="blue" />

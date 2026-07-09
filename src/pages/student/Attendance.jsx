@@ -24,6 +24,11 @@ export default function StudentAttendance() {
   );
   const { data: rankData } = useFetch(getClassRanking);
 
+  // Regularization window: last one month up to today
+  const todayStr = today.toISOString().split('T')[0];
+  const oneMonthAgo = new Date(); oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const oneMonthAgoStr = oneMonthAgo.toISOString().split('T')[0];
+
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDay    = new Date(year, month - 1, 1).getDay();
 
@@ -37,6 +42,8 @@ export default function StudentAttendance() {
   const handleSubmitCorrection = async (e) => {
     e.preventDefault();
     if (!form.date || !form.reason) return toast.error('Date and reason are required');
+    if (form.date < oneMonthAgoStr || form.date > todayStr)
+      return toast.error('You can only request corrections for the last one month');
     setSubmitting(true);
     try {
       await submitCorrection(form);
@@ -89,11 +96,15 @@ export default function StudentAttendance() {
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header"><strong>Attendance Correction Request</strong></div>
           <div className="card-body">
+            <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginTop: 0, marginBottom: 12 }}>
+              You can request a correction only for dates within the last one month. Your class teacher reviews it.
+            </p>
             <form onSubmit={handleSubmitCorrection}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 }}>
                 <div className="form-group">
                   <label className="form-label">Date *</label>
                   <input type="date" className="form-control" value={form.date}
+                    min={oneMonthAgoStr} max={todayStr}
                     onChange={e => setForm(f => ({ ...f, date: e.target.value }))} required />
                 </div>
                 <div className="form-group">
@@ -129,7 +140,7 @@ export default function StudentAttendance() {
           ))}
         </select>
         <select className="form-control" style={{ maxWidth: 100 }} value={year} onChange={e => setYear(+e.target.value)}>
-          {[2023,2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
+          {Array.from({ length: 4 }, (_, i) => today.getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         {loading && <Spinner />}
         <span style={{ background: '#d1fae5', color: '#065f46', padding: '4px 12px', borderRadius: 99, fontSize: '.85rem', fontWeight: 600 }}>{present} Present</span>

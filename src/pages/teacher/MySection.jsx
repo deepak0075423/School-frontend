@@ -35,7 +35,7 @@ export default function MySection() {
       <PageHeader title="My Section" subtitle={section ? `${section.class?.name} — Section ${section.name}` : 'No section assigned'} />
 
       {section ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
+        <div className="split-main-side">
           <div>
             <Card title="Announcements"
               action={<Button size="sm" onClick={() => setAnnModal(true)}>+ Post</Button>}>

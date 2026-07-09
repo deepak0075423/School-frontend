@@ -18,7 +18,10 @@ export default function AppLayout() {
   }, []);
 
   useEffect(() => {
-    const check = () => setSidebarCollapsed(window.innerWidth <= 992);
+    // Tablet (769–992px): collapse to an icon rail.
+    // Phone (≤768px): sidebar becomes an off-canvas drawer and must stay FULL —
+    // collapsed mode would render icons without labels inside the drawer.
+    const check = () => setSidebarCollapsed(window.innerWidth <= 992 && window.innerWidth > 768);
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);

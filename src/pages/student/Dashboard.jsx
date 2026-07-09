@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import useFetch from '../../hooks/useFetch';
-import { getDashboard, getModules, getHolidays, getSchoolConfig } from '../../api/student.api';
+import { getDashboard, getModules, getHolidays, getSchoolConfig, getMyAttendance } from '../../api/student.api';
 import { Spinner, MiniCalendar, StatCard } from '../../components/ui/index';
 
 const ALL_QUICK_LINKS = [
@@ -25,11 +25,20 @@ export default function StudentDashboard() {
   const { data: modules, loading: modLoading } = useFetch(getModules);
   const { data: schoolConfig }                 = useFetch(getSchoolConfig);
   const [holidays, setHolidays]                = useState([]);
+  const [attDays,  setAttDays]                 = useState([]);
 
   useEffect(() => {
     if (!modules) return;
     if (!modules.holiday) { setHolidays([]); return; }
     getHolidays().then(r => setHolidays(r.data ?? r ?? [])).catch(() => {});
+  }, [modules]);
+
+  useEffect(() => {
+    if (!modules?.attendance) { setAttDays([]); return; }
+    const n = new Date();
+    getMyAttendance({ month: n.getMonth() + 1, year: n.getFullYear() })
+      .then(r => setAttDays(Array.isArray(r.data ?? r) ? (r.data ?? r) : []))
+      .catch(() => {});
   }, [modules]);
 
   if (dashLoading || modLoading) return <div className="loading-page"><Spinner /></div>;
@@ -131,6 +140,7 @@ export default function StudentDashboard() {
         {/* Calendar */}
         <MiniCalendar
           holidays={holidays}
+          attendance={attDays}
           holidayListPath={modules?.holiday ? '/student/holidays' : ''}
           saturdayConfig={saturdayConfig}
         />

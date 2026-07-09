@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import useFetch from '../../hooks/useFetch';
 import * as api from '../../api/superAdmin.api';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader, Table, Badge, Button, Modal, Confirm, Pagination, Spinner } from '../../components/ui/index';
 
 const ROLES      = ['super_admin', 'school_admin', 'teacher', 'student', 'parent'];
@@ -32,6 +33,10 @@ function SortHeader({ label, field, sort, onSort }) {
 }
 
 export default function SAUsers() {
+  const { user: me } = useAuth();
+  // Super admin accounts (and your own account) can never be deleted
+  const canDelete = (u) => u && u.role !== 'super_admin' && String(u._id) !== String(me?._id);
+
   const [page,   setPage]   = useState(1);
   const [search, setSearch] = useState('');
   const [role,   setRole]   = useState('');
@@ -94,7 +99,7 @@ export default function SAUsers() {
   const openImport = () => { setImportOpen(true); setImportSchool(''); setImportFile(null); };
   const toggleSelect = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const toggleAll    = () => {
-    const ids = (data?.data || []).map(u => u._id);
+    const ids = (data?.data || []).filter(canDelete).map(u => u._id);
     setSelected(s => s.length === ids.length ? [] : ids);
   };
 
@@ -134,8 +139,12 @@ export default function SAUsers() {
   const handleBulkDelete = async () => {
     setBDL(true);
     try {
-      await api.bulkDeleteUsers(selected);
-      toast.success(`${selected.length} users deleted`);
+      const res = await api.bulkDeleteUsers(selected);
+      const deleted = res?.deleted ?? selected.length;
+      const msg = res?.message || `${deleted} user(s) deleted`;
+      if (deleted === 0) toast.error(msg);       // e.g. only super admins were selected
+      else if (res?.skipped > 0) toast(msg, { icon: '⚠️' });
+      else toast.success(msg);
       setSelected([]); setBulkDel(false); refetch();
     } catch (err) { toast.error(err.message); }
     finally { setBDL(false); }
@@ -174,7 +183,7 @@ export default function SAUsers() {
   };
 
   // ── columns ──────────────────────────────────────────────────────────────────
-  const allIds = (data?.data || []).map(u => u._id);
+  const allIds = (data?.data || []).filter(canDelete).map(u => u._id);
   const allSel = allIds.length > 0 && allIds.every(id => selected.includes(id));
 
   const columns = [
@@ -182,7 +191,7 @@ export default function SAUsers() {
       key: '_check',
       label: <input type="checkbox" checked={allSel} onChange={toggleAll} />,
       render: r => (
-        <input type="checkbox" checked={selected.includes(r._id)}
+        <input type="checkbox" checked={selected.includes(r._id)} disabled={!canDelete(r)}
           onChange={() => toggleSelect(r._id)} onClick={e => e.stopPropagation()} />
       ),
     },
@@ -232,7 +241,9 @@ export default function SAUsers() {
           <button className="btn btn-secondary btn-sm" title="One-time login link"
             onClick={() => { setLinkUser(r); setGenLink(''); }}>🔗
           </button>
-          <button className="btn btn-danger btn-sm" title="Delete" onClick={() => setDel(r)}>🗑️</button>
+          {canDelete(r) && (
+            <button className="btn btn-danger btn-sm" title="Delete" onClick={() => setDel(r)}>🗑️</button>
+          )}
         </div>
       ),
     },

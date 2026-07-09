@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import useFetch from '../../hooks/useFetch';
 import * as api from '../../api/admin.api';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader, Table, Badge, Button, Modal, Confirm, Pagination, Spinner } from '../../components/ui/index';
 
 export default function Admins() {
+  const { user: me } = useAuth();
   const [page, setPage]     = useState(1);
   const [search, setSearch] = useState('');
   const [del, setDel]       = useState(null);
@@ -46,7 +48,9 @@ export default function Admins() {
     { key: 'status', label: 'Status', render: r =>
       <Badge variant={r.isActive !== false ? 'success' : 'muted'}>{r.isActive !== false ? 'Active' : 'Inactive'}</Badge> },
     { key: 'actions', label: '', render: r => (
-      <button className="btn btn-danger btn-sm" onClick={() => setDel(r)}>Delete</button>
+      String(r._id) === String(me?._id)
+        ? <span style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}>You</span>
+        : <button className="btn btn-danger btn-sm" onClick={() => setDel(r)}>Delete</button>
     )},
   ];
 

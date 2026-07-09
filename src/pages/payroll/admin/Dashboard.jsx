@@ -27,7 +27,7 @@ export default function PayrollAdminDashboard() {
           </div>
         } />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard label="Total Employees"    value={d.totalEmployees || 0}    icon="👥" color="blue" />
         <StatCard label="Active Assignments" value={d.activeAssignments || 0} icon="📋" color="green" />
         <StatCard label="Current Run"

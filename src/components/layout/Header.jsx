@@ -147,12 +147,6 @@ export default function Header({ onMenuClick, onCollapseClick }) {
       <button className="header__toggle btn-icon" onClick={onCollapseClick}
         id="desktop-collapse-btn">☰</button>
 
-      {/* Search */}
-      <div className="header__search">
-        <span className="header__search-icon">🔍</span>
-        <input type="text" placeholder="Search…" />
-      </div>
-
       <div style={{ flex: 1 }} />
 
       {/* Actions */}

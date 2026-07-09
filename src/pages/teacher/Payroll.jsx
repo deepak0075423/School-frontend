@@ -18,7 +18,7 @@ export default function TeacherPayroll() {
     <div className="page">
       <PageHeader title="My Payroll" subtitle="CTC and payslips" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20 }}>
+      <div className="split-1-2">
         <Card title="My CTC">
           {cl ? <Spinner size="sm" /> : ctc ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

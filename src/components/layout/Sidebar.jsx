@@ -156,6 +156,8 @@ export default function Sidebar({ onLinkClick, collapsed }) {
       <div className="sidebar__logo">
         <span style={{ fontSize: '1.8rem' }}>🏫</span>
         {!collapsed && <span>School MS</span>}
+        {/* Mobile-only close button for the off-canvas drawer */}
+        <button className="sidebar__close" onClick={onLinkClick} aria-label="Close menu">✕</button>
       </div>
 
       <div className="sidebar__nav">

@@ -146,4 +146,7 @@ export const getMyAttendance  = (params) => api.get('/admin/my-attendance', { pa
 export const clockIn          = ()       => api.post('/admin/my-attendance/clock-in');
 export const clockOut         = ()       => api.post('/admin/my-attendance/clock-out');
 export const submitRegularization = (data) => api.post('/admin/regularization', data);
+export const regularizeStaffAttendance = (data) => api.post('/admin/regularization/apply', data);
+export const searchRegularizePeople = (params) => api.get('/admin/regularization/people', { params });
+export const regularizeStudentAttendance = (data) => api.post('/admin/regularization/student', data);
 export const getMyRegularizations = ()     => api.get('/admin/regularization');
