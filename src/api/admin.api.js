@@ -8,6 +8,11 @@ export const getSchoolSettings    = ()   => api.get('/admin/school-settings');
 export const updateSchoolSettings = (fd) => api.put('/admin/school-settings', fd);
 export const getSchoolConfig      = ()   => api.get('/profile/school-config');
 
+// SMTP Settings (per-school outgoing email)
+export const getSmtpSettings    = ()     => api.get('/admin/smtp-settings');
+export const updateSmtpSettings = (data) => api.put('/admin/smtp-settings', data);
+export const testSmtpSettings   = (to)   => api.post('/admin/smtp-settings/test', { to });
+
 // Users
 export const getTeachers = (params) => api.get('/admin/teachers', { params });
 export const getDesignations    = () => api.get('/admin/designations');

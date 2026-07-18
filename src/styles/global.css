@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   GLOBAL STYLES — School Management System
+   GLOBAL STYLES — Aksharum
    Breakpoints: mobile (<576px), sm (576-768), md (768-992), lg (992-1200), xl (>1200)
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -652,7 +652,7 @@ select.form-control {
   text-align: center;
   margin-bottom: 32px;
 }
-.auth-logo img  { width: 60px; margin: 0 auto 12px; }
+.auth-logo img  { width: 72px; height: 72px; margin: 0 auto 16px; display: block; border-radius: 16px; box-shadow: 0 10px 24px rgba(148, 116, 243, .35); }
 .auth-logo h1   { font-size: 1.5rem; font-weight: 800; color: var(--text); }
 .auth-logo p    { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
 

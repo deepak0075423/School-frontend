@@ -68,15 +68,38 @@ export default function Header({ onMenuClick, onCollapseClick }) {
     const sock = connectSocket(token);
 
     sock.on('notification:unread_count', ({ count }) => {
-      if (count > prevUnread.current) {
-        playNotifSound();
-        requestBrowserPush('New Notification', 'You have a new notification');
-      }
       prevUnread.current = count;
       setUnreadCount(count);
     });
 
-    return () => { sock.off('notification:unread_count'); };
+    // Real-time action notifications pushed via the WebSocket Gateway
+    sock.on('notification:new', (n) => {
+      playNotifSound();
+      requestBrowserPush(n?.title || 'New Notification', n?.body || '');
+      toast(t => (
+        <div style={{ cursor: 'pointer' }} onClick={() => toast.dismiss(t.id)}>
+          <strong style={{ display: 'block', fontSize: '.88rem' }}>{n?.title}</strong>
+          {n?.body && (
+            <span style={{ fontSize: '.8rem', color: '#64748b', display: 'block',
+              maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {n.body}
+            </span>
+          )}
+        </div>
+      ), { icon: '🔔', duration: 5000 });
+      // Show it instantly in the bell dropdown list
+      setNotifs(prev => [{
+        _id: `rt-${n?._id || Date.now()}`,
+        isRead: false,
+        createdAt: n?.createdAt || new Date().toISOString(),
+        notification: n,
+      }, ...prev].slice(0, 10));
+    });
+
+    return () => {
+      sock.off('notification:unread_count');
+      sock.off('notification:new');
+    };
   }, [user]);
 
   const fetchNotifs = async () => {

@@ -71,3 +71,50 @@ export const PAYROLL_TEACHER_TABS = [
   { to: '/teacher/payroll/ctc',      label: '💼 My CTC' },
   { to: '/teacher/payroll/payslips', label: '📄 Salary Slips' },
 ];
+
+export const INVENTORY_ADMIN_TABS = [
+  { to: '/admin/inventory/dashboard',   label: '🏠 Dashboard' },
+  { to: '/admin/inventory/items',       label: '📦 Items' },
+  { to: '/admin/inventory/stock',       label: '📊 Stock' },
+  { to: '/admin/inventory/requests',    label: '📝 Requests' },
+  { to: '/admin/inventory/orders',      label: '🧾 Purchase Orders' },
+  { to: '/admin/inventory/issues',      label: '📤 Issue / Return' },
+  { to: '/admin/inventory/assets',      label: '💻 Assets' },
+  { to: '/admin/inventory/vendors',     label: '🏭 Vendors' },
+  { to: '/admin/inventory/categories',  label: '🗂 Categories' },
+  { to: '/admin/inventory/warehouses',  label: '🏬 Warehouses' },
+  { to: '/admin/inventory/departments', label: '💼 Budgets' },
+  { to: '/admin/inventory/audit',       label: '🧾 Activity Log' },
+];
+
+export const INVENTORY_TEACHER_TABS = [
+  { to: '/teacher/inventory/requests', label: '📝 My Requests' },
+];
+
+export const TRANSPORT_ADMIN_TABS = [
+  { to: '/admin/transport/dashboard',   label: '🏠 Dashboard' },
+  { to: '/admin/transport/live',        label: '🛰️ Live Map' },
+  { to: '/admin/transport/vehicles',    label: '🚌 Vehicles' },
+  { to: '/admin/transport/staff',       label: '🧑‍✈️ Drivers & Crew' },
+  { to: '/admin/transport/routes',      label: '🛣️ Routes' },
+  { to: '/admin/transport/assignments', label: '🎒 Assignments' },
+  { to: '/admin/transport/trips',       label: '📅 Trips' },
+  { to: '/admin/transport/fuel',        label: '⛽ Fuel' },
+  { to: '/admin/transport/maintenance', label: '🔧 Maintenance' },
+  { to: '/admin/transport/incidents',   label: '⚠️ Incidents' },
+  { to: '/admin/transport/complaints',  label: '📣 Complaints' },
+  { to: '/admin/transport/fee-plans',   label: '🏷️ Fee Plans' },
+  { to: '/admin/transport/invoices',    label: '💳 Invoices' },
+  { to: '/admin/transport/requests',    label: '📨 Requests' },
+  { to: '/admin/transport/reports',     label: '📈 Reports' },
+  { to: '/admin/transport/settings',    label: '⚙️ Settings' },
+  { to: '/admin/transport/audit',       label: '🧾 Activity Log' },
+];
+
+export const TRANSPORT_PARENT_TABS = [
+  { to: '/parent/transport/track',      label: '🛰️ Track Bus' },
+  { to: '/parent/transport/details',    label: '🚌 My Transport' },
+  { to: '/parent/transport/attendance', label: '✅ Attendance' },
+  { to: '/parent/transport/fees',       label: '💳 Fees' },
+  { to: '/parent/transport/requests',   label: '📨 Requests' },
+];

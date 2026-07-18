@@ -5,6 +5,8 @@ import AppLayout from './components/layout/AppLayout';
 import ModuleNav, {
   FEES_ADMIN_TABS, PAYROLL_ADMIN_TABS, LIBRARY_ADMIN_TABS,
   LIBRARY_STUDENT_TABS, PAYROLL_TEACHER_TABS, LIBRARY_MANAGE_TABS,
+  INVENTORY_ADMIN_TABS, INVENTORY_TEACHER_TABS,
+  TRANSPORT_ADMIN_TABS, TRANSPORT_PARENT_TABS,
 } from './components/layout/ModuleNav';
 
 // ── Auth Pages ────────────────────────────────────────────────────────────────
@@ -110,6 +112,46 @@ const LibCirculation= lazy(() => import('./pages/library/librarian/Circulation')
 const LibReservations=lazy(() => import('./pages/library/librarian/Reservations'));
 const LibFines      = lazy(() => import('./pages/library/librarian/Fines'));
 const LibPolicy     = lazy(() => import('./pages/library/librarian/Policy'));
+
+// ── Inventory ─────────────────────────────────────────────────────────────────
+const InvDashboard   = lazy(() => import('./pages/inventory/admin/Dashboard'));
+const InvItems       = lazy(() => import('./pages/inventory/admin/Items'));
+const InvStock       = lazy(() => import('./pages/inventory/admin/Stock'));
+const InvRequests    = lazy(() => import('./pages/inventory/admin/PurchaseRequests'));
+const InvOrders      = lazy(() => import('./pages/inventory/admin/PurchaseOrders'));
+const InvIssues      = lazy(() => import('./pages/inventory/admin/Issues'));
+const InvAssets      = lazy(() => import('./pages/inventory/admin/Assets'));
+const InvVendors     = lazy(() => import('./pages/inventory/admin/Vendors'));
+const InvCategories  = lazy(() => import('./pages/inventory/admin/Categories'));
+const InvWarehouses  = lazy(() => import('./pages/inventory/admin/Warehouses'));
+const InvDepartments = lazy(() => import('./pages/inventory/admin/Departments'));
+const InvAudit       = lazy(() => import('./pages/inventory/admin/Audit'));
+const InvTeacherRequests = lazy(() => import('./pages/inventory/teacher/PurchaseRequests'));
+
+// ── Transport ─────────────────────────────────────────────────────────────────
+const TrDashboard   = lazy(() => import('./pages/transport/admin/Dashboard'));
+const TrLive        = lazy(() => import('./pages/transport/admin/LiveTracking'));
+const TrVehicles    = lazy(() => import('./pages/transport/admin/Vehicles'));
+const TrStaff       = lazy(() => import('./pages/transport/admin/Staff'));
+const TrRoutes      = lazy(() => import('./pages/transport/admin/Routes'));
+const TrAssignments = lazy(() => import('./pages/transport/admin/Assignments'));
+const TrTrips       = lazy(() => import('./pages/transport/admin/Trips'));
+const TrFuel        = lazy(() => import('./pages/transport/admin/Fuel'));
+const TrMaintenance = lazy(() => import('./pages/transport/admin/Maintenance'));
+const TrIncidents   = lazy(() => import('./pages/transport/admin/Incidents'));
+const TrComplaints  = lazy(() => import('./pages/transport/admin/Complaints'));
+const TrFeePlans    = lazy(() => import('./pages/transport/admin/FeePlans'));
+const TrInvoices    = lazy(() => import('./pages/transport/admin/Invoices'));
+const TrRequests    = lazy(() => import('./pages/transport/admin/Requests'));
+const TrReports     = lazy(() => import('./pages/transport/admin/Reports'));
+const TrSettings    = lazy(() => import('./pages/transport/admin/Settings'));
+const TrAudit       = lazy(() => import('./pages/transport/admin/Audit'));
+const TrParentTrack      = lazy(() => import('./pages/transport/parent/Track'));
+const TrParentDetails    = lazy(() => import('./pages/transport/parent/Details'));
+const TrParentAttendance = lazy(() => import('./pages/transport/parent/Attendance'));
+const TrParentFees       = lazy(() => import('./pages/transport/parent/Fees'));
+const TrParentRequests   = lazy(() => import('./pages/transport/parent/Requests'));
+const TrStudent          = lazy(() => import('./pages/transport/student/Transport'));
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
 const Chat = lazy(() => import('./pages/Chat'));
@@ -240,6 +282,43 @@ export default function App() {
               <Route path="fines"       element={<LibFines />} />
               <Route path="policy"      element={<LibPolicy />} />
             </Route>
+            {/* Inventory */}
+            <Route path="inventory" element={<ModuleNav tabs={INVENTORY_ADMIN_TABS} />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard"   element={<InvDashboard />} />
+              <Route path="items"       element={<InvItems />} />
+              <Route path="stock"       element={<InvStock />} />
+              <Route path="requests"    element={<InvRequests />} />
+              <Route path="orders"      element={<InvOrders />} />
+              <Route path="issues"      element={<InvIssues />} />
+              <Route path="assets"      element={<InvAssets />} />
+              <Route path="vendors"     element={<InvVendors />} />
+              <Route path="categories"  element={<InvCategories />} />
+              <Route path="warehouses"  element={<InvWarehouses />} />
+              <Route path="departments" element={<InvDepartments />} />
+              <Route path="audit"       element={<InvAudit />} />
+            </Route>
+            {/* Transport */}
+            <Route path="transport" element={<ModuleNav tabs={TRANSPORT_ADMIN_TABS} />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard"   element={<TrDashboard />} />
+              <Route path="live"        element={<TrLive />} />
+              <Route path="vehicles"    element={<TrVehicles />} />
+              <Route path="staff"       element={<TrStaff />} />
+              <Route path="routes"      element={<TrRoutes />} />
+              <Route path="assignments" element={<TrAssignments />} />
+              <Route path="trips"       element={<TrTrips />} />
+              <Route path="fuel"        element={<TrFuel />} />
+              <Route path="maintenance" element={<TrMaintenance />} />
+              <Route path="incidents"   element={<TrIncidents />} />
+              <Route path="complaints"  element={<TrComplaints />} />
+              <Route path="fee-plans"   element={<TrFeePlans />} />
+              <Route path="invoices"    element={<TrInvoices />} />
+              <Route path="requests"    element={<TrRequests />} />
+              <Route path="reports"     element={<TrReports />} />
+              <Route path="settings"    element={<TrSettings />} />
+              <Route path="audit"       element={<TrAudit />} />
+            </Route>
           </Route>
 
           {/* Teacher */}
@@ -276,6 +355,10 @@ export default function App() {
               <Route path="fines"       element={<LibFines />} />
               <Route path="policy"      element={<LibPolicy />} />
             </Route>
+            <Route path="inventory" element={<ModuleNav tabs={INVENTORY_TEACHER_TABS} />}>
+              <Route index element={<Navigate to="requests" replace />} />
+              <Route path="requests" element={<InvTeacherRequests />} />
+            </Route>
             <Route path="holidays"         element={<THolidays />} />
             <Route path="notifications"    element={<SharedNotifications />} />
           </Route>
@@ -293,6 +376,7 @@ export default function App() {
             <Route path="documents"        element={<SDocuments />} />
             <Route path="holidays"         element={<SHolidays />} />
             <Route path="fees/*"           element={<SFees />} />
+            <Route path="transport"        element={<TrStudent />} />
             <Route element={<ModuleNav tabs={LIBRARY_STUDENT_TABS('/student')} />}>
               <Route path="library"          element={<SLibrary />} />
               <Route path="library/search"   element={<SLibSearch />} />
@@ -314,6 +398,15 @@ export default function App() {
             <Route path="documents"        element={<PDocuments />} />
             <Route path="holidays"         element={<PHolidays />} />
             <Route path="child-fees"       element={<PFees />} />
+            {/* Transport */}
+            <Route path="transport" element={<ModuleNav tabs={TRANSPORT_PARENT_TABS} />}>
+              <Route index element={<Navigate to="track" replace />} />
+              <Route path="track"      element={<TrParentTrack />} />
+              <Route path="details"    element={<TrParentDetails />} />
+              <Route path="attendance" element={<TrParentAttendance />} />
+              <Route path="fees"       element={<TrParentFees />} />
+              <Route path="requests"   element={<TrParentRequests />} />
+            </Route>
             <Route path="notifications"    element={<SharedNotifications />} />
           </Route>
 

@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { getSchoolSettings, updateSchoolSettings } from '../../api/admin.api';
+import { getSchoolSettings, updateSchoolSettings, getSmtpSettings, updateSmtpSettings, testSmtpSettings } from '../../api/admin.api';
 import { PageHeader, Button, Spinner } from '../../components/ui/index';
+import { useAuth } from '../../contexts/AuthContext';
 
-const UPLOADS_BASE = 'http://localhost:5000/uploads/images';
+const UPLOADS_BASE = '/uploads/images';
+
+const EMPTY_SMTP = {
+  enabled: false, host: '', port: 587, secure: false,
+  user: '', pass: '', fromName: '', fromEmail: '', hasPassword: false,
+};
 
 const EMPTY = {
   code: '', email: '', phone: '', website: '',
@@ -21,9 +27,19 @@ export default function SchoolSettings() {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
+  const [smtp,        setSmtp]        = useState(EMPTY_SMTP);
+  const [smtpSaving,  setSmtpSaving]  = useState(false);
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const { user, reload } = useAuth();
   const logoRef = useRef();
 
   useEffect(() => {
+    getSmtpSettings()
+      .then(res => {
+        const d = res.data?.data ?? res.data ?? res;
+        setSmtp({ ...EMPTY_SMTP, ...d, pass: '' });
+      })
+      .catch(() => {});
     getSchoolSettings()
       .then(res => {
         const d = res.data?.data ?? res.data;
@@ -56,6 +72,42 @@ export default function SchoolSettings() {
     ...f,
     leaveSettings: { ...f.leaveSettings, [key]: val },
   }));
+  const setSmtpF = (key, val) => setSmtp(s => ({ ...s, [key]: val }));
+
+  const handleSmtpSave = async () => {
+    if (smtp.enabled && (!smtp.host.trim() || !smtp.user.trim()))
+      return toast.error('Host and username are required to enable SMTP');
+    if (smtp.enabled && !smtp.pass && !smtp.hasPassword)
+      return toast.error('Password is required to enable SMTP');
+    setSmtpSaving(true);
+    try {
+      await updateSmtpSettings({
+        enabled:   smtp.enabled,
+        host:      smtp.host,
+        port:      smtp.port,
+        secure:    smtp.secure,
+        user:      smtp.user,
+        pass:      smtp.pass,           // blank = keep existing
+        fromName:  smtp.fromName,
+        fromEmail: smtp.fromEmail,
+      });
+      if (smtp.pass) setSmtp(s => ({ ...s, pass: '', hasPassword: true }));
+      toast.success('SMTP settings saved');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to save SMTP settings');
+    } finally { setSmtpSaving(false); }
+  };
+
+  const handleSmtpTest = async () => {
+    setSmtpTesting(true);
+    try {
+      const res = await testSmtpSettings(user?.email);
+      const d = res.data ?? res;
+      toast.success(`Test email sent to ${d?.to || user?.email}`);
+    } catch (err) {
+      toast.error(err?.message || 'Test email failed');
+    } finally { setSmtpTesting(false); }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,6 +125,7 @@ export default function SchoolSettings() {
       setLogo(d.logo || '');
       setPreview(null);
       if (logoRef.current) logoRef.current.value = '';
+      reload();   // refresh user.school so the sidebar logo/name update immediately
       toast.success('Settings saved');
     } catch (err) {
       toast.error(err?.response?.data?.message || err.message);
@@ -220,6 +273,92 @@ export default function SchoolSettings() {
         </div>
 
       </form>
+
+      {/* ── Email (SMTP) Settings ── */}
+      <div className="card" style={{ maxWidth: 680, marginTop: 20 }}>
+        <div className="card-header">
+          <strong>Email (SMTP) Settings</strong>
+          <div style={{ fontSize: '.78rem', color: 'var(--text-muted)', fontWeight: 400, marginTop: 2 }}>
+            When enabled, all emails to your students, parents and staff are sent from your school's own mailbox.
+          </div>
+        </div>
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={smtp.enabled}
+              onChange={e => setSmtpF('enabled', e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+            />
+            <div>
+              <div style={{ fontWeight: 600 }}>Use our school's SMTP server</div>
+              <div style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>
+                When off, the platform's default mail server is used
+              </div>
+            </div>
+          </label>
+
+          <div className="form-row form-row-2">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">SMTP Host</label>
+              <input className="form-control" value={smtp.host}
+                onChange={e => setSmtpF('host', e.target.value)} placeholder="smtp.gmail.com" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Port</label>
+              <input type="number" className="form-control" value={smtp.port}
+                onChange={e => setSmtpF('port', e.target.value)} placeholder="587" />
+            </div>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={smtp.secure}
+              onChange={e => setSmtpF('secure', e.target.checked)}
+              style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
+            <span style={{ fontSize: '.85rem' }}>Use SSL/TLS (port 465). Leave off for STARTTLS (port 587).</span>
+          </label>
+
+          <div className="form-row form-row-2">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Username</label>
+              <input className="form-control" value={smtp.user} autoComplete="off"
+                onChange={e => setSmtpF('user', e.target.value)} placeholder="mail@yourschool.edu" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Password {smtp.hasPassword && !smtp.pass ? '(saved — leave blank to keep)' : ''}</label>
+              <input type="password" className="form-control" value={smtp.pass} autoComplete="new-password"
+                onChange={e => setSmtpF('pass', e.target.value)}
+                placeholder={smtp.hasPassword ? '••••••••' : 'App password'} />
+            </div>
+          </div>
+
+          <div className="form-row form-row-2">
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">From Name</label>
+              <input className="form-control" value={smtp.fromName}
+                onChange={e => setSmtpF('fromName', e.target.value)} placeholder={name || 'School name'} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">From Email</label>
+              <input type="email" className="form-control" value={smtp.fromEmail}
+                onChange={e => setSmtpF('fromEmail', e.target.value)} placeholder="Defaults to username" />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="secondary" type="button" loading={smtpTesting}
+              onClick={handleSmtpTest} disabled={!smtp.enabled && !smtp.hasPassword}>
+              Send Test Email
+            </Button>
+            <Button type="button" loading={smtpSaving} onClick={handleSmtpSave}>Save SMTP Settings</Button>
+          </div>
+
+          <div style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
+            💡 Save settings first, then use "Send Test Email" — a test message is sent to your account email ({user?.email}).
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

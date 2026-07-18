@@ -12,6 +12,8 @@ const MODULES = [
   { key: 'fees',         label: 'Fees',           icon: '💰' },
   { key: 'payroll',      label: 'Payroll',        icon: '💵' },
   { key: 'library',      label: 'Library',        icon: '📖' },
+  { key: 'inventory',    label: 'Inventory',      icon: '📦' },
+  { key: 'transport',    label: 'Transport',      icon: '🚌' },
   { key: 'leave',        label: 'Leave',          icon: '🏖️' },
   { key: 'document',     label: 'Documents',      icon: '📁' },
   { key: 'holiday',      label: 'Holidays',       icon: '🎉' },

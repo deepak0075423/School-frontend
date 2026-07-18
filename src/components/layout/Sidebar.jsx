@@ -6,6 +6,8 @@ import { getModules as getAdminModules }   from '../../api/admin.api';
 import { getModules as getTeacherModules } from '../../api/teacher.api';
 import { getModules as getStudentModules } from '../../api/student.api';
 import { getModules as getParentModules }  from '../../api/parent.api';
+import logoIcon from '../../assets/logo-icon.svg';
+import { schoolLogoUrl } from '../../utils/branding';
 
 const Icon = ({ name }) => <span className="sidebar__link-icon">{name}</span>;
 
@@ -40,6 +42,8 @@ const ADMIN_NAV = [
   { to: '/admin/fees/dashboard',    icon: '💰', label: 'Fees',          module: 'fees' },
   { to: '/admin/payroll/dashboard', icon: '💵', label: 'Payroll',       module: 'payroll' },
   { to: '/admin/library/dashboard', icon: '📖', label: 'Library',       module: 'library' },
+  { to: '/admin/inventory/dashboard', icon: '📦', label: 'Inventory',   module: 'inventory' },
+  { to: '/admin/transport/dashboard', icon: '🚌', label: 'Transport',   module: 'transport' },
   { to: '/admin/leave',             icon: '🏖️', label: 'Leave',         module: 'leave' },
   { to: '/admin/documents',         icon: '📁', label: 'Documents',     module: 'document' },
   { to: '/admin/holidays',          icon: '🎉', label: 'Holidays',      module: 'holiday' },
@@ -68,6 +72,7 @@ const TEACHER_NAV = [
   { to: '/teacher/payroll/ctc',     icon: '💵', label: 'Payroll',       module: 'payroll' },
   { to: '/teacher/library',         icon: '📖', label: 'Library',       module: 'library' },
   { to: '/teacher/manage-library/dashboard', icon: '📚', label: 'Manage Library', module: 'library', requires: 'isLibrarian' },
+  { to: '/teacher/inventory/requests', icon: '📦', label: 'Inventory',   module: 'inventory' },
   { to: '/teacher/holidays',        icon: '🎉', label: 'Holidays',      module: 'holiday' },
   { to: '/teacher/notifications',   icon: '🔔', label: 'Notifications', module: 'notification' },
   { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
@@ -88,6 +93,7 @@ const STUDENT_NAV = [
   { to: '/student/documents',       icon: '📁', label: 'Documents',     module: 'document' },
   { to: '/student/holidays',        icon: '🎉', label: 'Holidays',      module: 'holiday' },
   { to: '/student/fees',            icon: '💰', label: 'Fees',          module: 'fees' },
+  { to: '/student/transport',       icon: '🚌', label: 'Transport',     module: 'transport' },
   { to: '/student/library',         icon: '📖', label: 'Library',       module: 'library' },
   { to: '/student/notifications',   icon: '🔔', label: 'Notifications', module: 'notification' },
   { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
@@ -107,6 +113,7 @@ const PARENT_NAV = [
   { to: '/parent/documents',        icon: '📁', label: 'Documents',     module: 'document' },
   { to: '/parent/holidays',         icon: '🎉', label: 'Holidays',      module: 'holiday' },
   { to: '/parent/child-fees',       icon: '💰', label: 'Fees',          module: 'fees' },
+  { to: '/parent/transport/track',  icon: '🚌', label: 'Transport',     module: 'transport' },
   { to: '/parent/notifications',    icon: '🔔', label: 'Notifications', module: 'notification' },
   { to: '/chat',                    icon: '💬', label: 'Chat',          module: 'chat' },
   { section: 'Account' },
@@ -154,8 +161,12 @@ export default function Sidebar({ onLinkClick, collapsed }) {
   return (
     <nav className="sidebar">
       <div className="sidebar__logo">
-        <span style={{ fontSize: '1.8rem' }}>🏫</span>
-        {!collapsed && <span>School MS</span>}
+        <img
+          src={schoolLogoUrl(user?.school) || logoIcon}
+          alt={user?.school?.name || 'Aksharum'}
+          style={schoolLogoUrl(user?.school) ? { background: '#fff', borderRadius: 6, padding: 2, objectFit: 'contain' } : undefined}
+        />
+        {!collapsed && <span>{user?.school?.name || 'Aksharum'}</span>}
         {/* Mobile-only close button for the off-canvas drawer */}
         <button className="sidebar__close" onClick={onLinkClick} aria-label="Close menu">✕</button>
       </div>

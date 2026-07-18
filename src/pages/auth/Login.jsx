@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { login } from '../../api/auth.api';
 import { useAuth } from '../../contexts/AuthContext';
+import logoMark from '../../assets/logo-icon.svg';
 
 const roleHome = {
   super_admin:  '/super-admin/dashboard',
@@ -43,8 +44,8 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <div style={{ fontSize: '3rem', marginBottom: 8 }}>🏫</div>
-          <h1>School Management</h1>
+          <img src={logoMark} alt="Aksharum" />
+          <h1>Aksharum</h1>
           <p>Sign in to your account</p>
         </div>
 
@@ -107,7 +108,7 @@ export default function Login() {
         </form>
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: '.85rem', color: 'var(--text-muted)' }}>
-          Protected by School Management System
+          Protected by Aksharum
         </p>
       </div>
     </div>

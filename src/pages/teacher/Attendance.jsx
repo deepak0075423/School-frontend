@@ -25,8 +25,8 @@ function SectionRanking() {
   );
 }
 
-const STATUS_COLORS = { present: '#10b981', absent: '#ef4444' };
-const STATUS_OPTS   = ['present', 'absent'];
+const STATUS_COLORS = { present: '#10b981', absent: '#ef4444', late: '#f59e0b' };
+const STATUS_OPTS   = ['present', 'absent', 'late'];
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 // ── Tab 1: Mark Student Attendance (class teacher / vice class teacher) ───────
