@@ -14,6 +14,8 @@ export default function Sections() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) return toast.error('Section name is required');
+    if (!form.capacity || Number(form.capacity) < 1) return toast.error('Capacity must be a positive number');
     setSaving(true);
     try { await api.createSection(id, form); toast.success('Section created'); setModal(false); refetch(); }
     catch (err) { toast.error(err.message); }

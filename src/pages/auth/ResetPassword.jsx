@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { resetPassword } from '../../api/auth.api';
 import { useAuth } from '../../contexts/AuthContext';
+import { passwordError } from '../../utils/validators';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -14,7 +15,8 @@ export default function ResetPassword() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (form.newPassword.length < 8) return toast.error('Minimum 8 characters required');
+    const pwErr = passwordError(form.newPassword);
+    if (pwErr) return toast.error(pwErr);
     if (form.newPassword !== form.confirm) return toast.error('Passwords do not match');
     setLoading(true);
     try {

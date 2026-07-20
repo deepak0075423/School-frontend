@@ -4,26 +4,32 @@ import toast from 'react-hot-toast';
 import * as api from '../../api/superAdmin.api';
 import { PageHeader, Button, Card } from '../../components/ui/index';
 
+const SCHOOL_BOARDS = ['CBSE', 'ICSE', 'State Board', 'IB', 'Cambridge (IGCSE)', 'NIOS', 'Other'];
+
 const initial = {
-  name: '', code: '', email: '', phone: '',
+  name: '', code: '', board: '', email: '', phone: '',
   address: '', city: '', state: '', country: 'India',
   website: '', isActive: true,
 };
 
-const REQUIRED_FIELDS = ['name', 'code', 'email', 'phone', 'address', 'city', 'state', 'country'];
+const REQUIRED_FIELDS = ['name', 'code', 'board', 'email', 'phone', 'address', 'city', 'state', 'country'];
 const FIELD_LABELS = {
-  name: 'School Name', code: 'School Code', email: 'Email', phone: 'Phone',
+  name: 'School Name', code: 'School Code', board: 'School Board', email: 'Email', phone: 'Phone',
   address: 'Address', city: 'City', state: 'State', country: 'Country',
 };
 
+// Returns { field: message } for every invalid field, {} when the form is valid.
 function validate(form) {
+  const errors = {};
   for (const field of REQUIRED_FIELDS) {
-    if (!form[field]?.trim()) return `${FIELD_LABELS[field]} is required`;
+    if (!form[field]?.trim()) errors[field] = `${FIELD_LABELS[field]} is required`;
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return 'Please enter a valid email address';
-  if (!/^\+?[\d\s\-()]{7,15}$/.test(form.phone)) return 'Please enter a valid phone number';
-  if (form.website && !/^https?:\/\/.+/.test(form.website)) return 'Website must start with http:// or https://';
-  return null;
+  if (!errors.name && form.name.trim().length < 3) errors.name = 'School name must be at least 3 characters';
+  if (!errors.code && !/^[A-Za-z0-9_-]{2,20}$/.test(form.code.trim())) errors.code = 'Code must be 2-20 letters, numbers, hyphens or underscores';
+  if (!errors.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Please enter a valid email address';
+  if (!errors.phone && !/^\+?[\d\s\-()]{7,15}$/.test(form.phone)) errors.phone = 'Please enter a valid phone number';
+  if (form.website && !/^https?:\/\/.+\..+/.test(form.website)) errors.website = 'Website must be a valid URL starting with http:// or https://';
+  return errors;
 }
 
 export default function SchoolForm() {
@@ -45,6 +51,7 @@ export default function SchoolForm() {
           setForm({
             name:     s.name    || '',
             code:     s.code    || '',
+            board:    s.board   || '',
             email:    s.email   || '',
             phone:    s.phone   || '',
             address:  s.address || '',
@@ -78,12 +85,10 @@ export default function SchoolForm() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    const errMsg = validate(form);
-    if (errMsg) {
-      toast.error(errMsg);
-      // highlight the specific field
-      const field = REQUIRED_FIELDS.find(f => !form[f]?.trim()) || 'email';
-      setErrors({ [field]: errMsg });
+    const errs = validate(form);
+    if (Object.keys(errs).length) {
+      toast.error(Object.values(errs)[0]);
+      setErrors(errs);
       return;
     }
     setLoading(true);
@@ -167,7 +172,19 @@ export default function SchoolForm() {
             {inp('code', 'School Code', 'text', 'SXS001')}
           </div>
           <div className="form-row form-row-2">
+            <div className="form-group">
+              <label className="form-label required">School Board</label>
+              <select name="board" className={`form-control${errors.board ? ' is-invalid' : ''}`}
+                value={form.board} onChange={onChange} required
+                style={errors.board ? { borderColor: 'var(--danger)' } : {}}>
+                <option value="">— Select board —</option>
+                {SCHOOL_BOARDS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              {fieldError('board')}
+            </div>
             {inp('email', 'Email Address', 'email', 'admin@school.edu.in')}
+          </div>
+          <div className="form-row form-row-2">
             {inp('phone', 'Phone Number', 'tel', '+91 98765 43210')}
           </div>
 

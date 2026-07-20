@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { login } from '../../api/auth.api';
+import { isEmail } from '../../utils/validators';
 import { useAuth } from '../../contexts/AuthContext';
 import logoMark from '../../assets/logo-icon.svg';
 
@@ -25,6 +26,7 @@ export default function Login() {
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) return toast.error('Please fill all fields');
+    if (!isEmail(form.email)) return toast.error('Please enter a valid email address');
     setLoading(true);
     try {
       const res = await login(form);

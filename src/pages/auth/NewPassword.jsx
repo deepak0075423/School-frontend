@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { newPassword } from '../../api/auth.api';
+import { passwordError } from '../../utils/validators';
 
 export default function NewPassword() {
   const navigate  = useNavigate();
@@ -12,7 +13,8 @@ export default function NewPassword() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (form.password.length < 8) return toast.error('Password must be at least 8 characters');
+    const pwErr = passwordError(form.password);
+    if (pwErr) return toast.error(pwErr);
     if (form.password !== form.confirm) return toast.error('Passwords do not match');
     setLoading(true);
     try {

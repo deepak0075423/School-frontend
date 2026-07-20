@@ -4,6 +4,7 @@ import useFetch from '../../hooks/useFetch';
 import * as api from '../../api/superAdmin.api';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader, Table, Badge, Button, Modal, Confirm, Pagination, Spinner } from '../../components/ui/index';
+import { isEmail, passwordError } from '../../utils/validators';
 
 const ROLES      = ['super_admin', 'school_admin', 'teacher', 'student', 'parent'];
 const BULK_ROLES = ['teacher', 'student'];
@@ -107,8 +108,14 @@ export default function SAUsers() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return toast.error('Name is required');
+    if (form.name.trim().length < 2) return toast.error('Name must be at least 2 characters');
     if (!editUser && !form.email.trim()) return toast.error('Email is required');
+    if (!editUser && !isEmail(form.email)) return toast.error('Please enter a valid email address');
     if (needsSchool(form.role) && !form.school) return toast.error('Please select a school');
+    if (editUser && form.password) {
+      const pwErr = passwordError(form.password);
+      if (pwErr) return toast.error(pwErr);
+    }
     setSaving(true);
     try {
       if (editUser) {

@@ -18,6 +18,10 @@ export default function AcademicYears() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!form.yearName.trim()) return toast.error('Year name is required');
+    if (!form.startDate) return toast.error('Start date is required');
+    if (!form.endDate) return toast.error('End date is required');
+    if (new Date(form.endDate) <= new Date(form.startDate)) return toast.error('End date must be after start date');
     setSaving(true);
     try {
       if (editYr) {

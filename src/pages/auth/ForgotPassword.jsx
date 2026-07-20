@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { forgotPassword } from '../../api/auth.api';
+import { isEmail } from '../../utils/validators';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function ForgotPassword() {
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!email) return toast.error('Please enter your email');
+    if (!isEmail(email)) return toast.error('Please enter a valid email address');
     setLoading(true);
     try {
       await forgotPassword({ email });

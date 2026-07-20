@@ -52,6 +52,7 @@ export default function Schools() {
         ? <span style={{ fontFamily: 'monospace', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 4, fontSize: '.8rem', fontWeight: 600 }}>{r.code}</span>
         : <span style={{ color: 'var(--text-muted)' }}>—</span>,
     },
+    { key: 'board',  label: 'Board',  render: r => r.board || <span style={{ color: 'var(--text-muted)' }}>—</span> },
     { key: 'email',  label: 'Email',  render: r => r.email || '—' },
     { key: 'phone',  label: 'Phone',  render: r => r.phone || '—' },
     {

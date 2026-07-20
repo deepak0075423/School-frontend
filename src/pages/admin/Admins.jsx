@@ -4,6 +4,7 @@ import useFetch from '../../hooks/useFetch';
 import * as api from '../../api/admin.api';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader, Table, Badge, Button, Modal, Confirm, Pagination, Spinner } from '../../components/ui/index';
+import { isEmail } from '../../utils/validators';
 
 export default function Admins() {
   const { user: me } = useAuth();
@@ -22,6 +23,9 @@ export default function Admins() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) return toast.error('Full name is required');
+    if (form.name.trim().length < 2) return toast.error('Name must be at least 2 characters');
+    if (!isEmail(form.email)) return toast.error('Please enter a valid email address');
     setSaving(true);
     try { await api.createAdmin(form); toast.success('Admin created — login credentials emailed'); setModal(false); setForm({ name: '', email: '' }); refetch(); }
     catch (err) { toast.error(err.message); }

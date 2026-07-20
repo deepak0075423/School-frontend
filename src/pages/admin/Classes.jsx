@@ -31,6 +31,9 @@ export default function Classes() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) return toast.error('Class name is required');
+    if (form.level !== '' && (Number.isNaN(Number(form.level)) || Number(form.level) < 0))
+      return toast.error('Class number must be a non-negative number');
     setSaving(true);
     try {
       const payload = { name: form.name, level: form.level };

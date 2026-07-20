@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { getSchoolSettings, updateSchoolSettings, getSmtpSettings, updateSmtpSettings, testSmtpSettings } from '../../api/admin.api';
 import { PageHeader, Button, Spinner } from '../../components/ui/index';
 import { useAuth } from '../../contexts/AuthContext';
+import { isEmail, isPhone, isURL } from '../../utils/validators';
 
 const UPLOADS_BASE = '/uploads/images';
 
@@ -79,6 +80,11 @@ export default function SchoolSettings() {
       return toast.error('Host and username are required to enable SMTP');
     if (smtp.enabled && !smtp.pass && !smtp.hasPassword)
       return toast.error('Password is required to enable SMTP');
+    const port = Number(smtp.port);
+    if (smtp.port !== '' && (Number.isNaN(port) || port < 1 || port > 65535))
+      return toast.error('SMTP port must be a number between 1 and 65535');
+    if (smtp.fromEmail && !isEmail(smtp.fromEmail))
+      return toast.error('From email must be a valid email address');
     setSmtpSaving(true);
     try {
       await updateSmtpSettings({
@@ -111,6 +117,9 @@ export default function SchoolSettings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.email && !isEmail(form.email)) return toast.error('Please enter a valid email address');
+    if (form.phone && !isPhone(form.phone)) return toast.error('Please enter a valid phone number');
+    if (form.website && !isURL(form.website)) return toast.error('Website must be a valid URL starting with http:// or https://');
     setSaving(true);
     try {
       const fd = new FormData();
